@@ -40,7 +40,7 @@ jobs:
           wget https://archive.apache.org/dist/maven/maven-3/3.9.4/binaries/apache-maven-3.9.4-bin.tar.gz
           tar xzvf apache-maven-3.9.4-bin.tar.gz
           sudo mv apache-maven-3.9.4 /opt/
-          sudo ln -s /opt/apache-maven-3.9.4/bin/mvn /usr/bin/mvn
+          sudo ln -sf /opt/apache-maven-3.9.4/bin/mvn /usr/bin/mvn
 
       - name: Update pom.xml version 💾
         run: |
