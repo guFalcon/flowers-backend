@@ -29,11 +29,10 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-maven-
 
-      - name: Set up JDK 21 ⚙️
-        uses: actions/setup-java@v4
+      - name: Set up Maven 3.9.4 ⚙️
+        uses: stCarolas/setup-maven@v1
         with:
-          java-version: '21'
-          distribution: 'temurin'
+          maven-version: 3.9.4
 
       - name: Conditionally setup Maven ⚙️
         run: |
@@ -43,11 +42,8 @@ jobs:
         run: |
           mvn versions:set -DnewVersion=${{ needs.bump.outputs.major_version }}.${{ needs.bump.outputs.minor_version }}.${{ needs.bump.outputs.build_version }} -DgenerateBackupPoms=false
 
-      - name: Clean Quarkus Maven Plugin Cache
-        run: rm -rf ~/.m2/repository/io/quarkus
-
       - name: Build with Maven 🔨
-        run:  mvn clean package -DskipTests
+        run:  mvn package -DskipTests
 
       - name: Upload target
         uses: actions/upload-artifact@v4
