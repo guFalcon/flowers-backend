@@ -1,0 +1,16 @@
+services:
+  backend:
+    image: gufalcon/flowers-backend:latest
+    restart: unless-stopped
+    container_name: flowers-backend
+    environment:
+      - LANGUAGE=de_AT:de
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.flowers-backend.rule=Host(`flowers-backend.htl.dev`)
+      - traefik.http.services.flowers-backend.loadbalancer.server.port=8080
+
+networks:
+  default:
+    name: proxy_default
+    external: true
