@@ -43,8 +43,11 @@ jobs:
         run: |
           mvn versions:set -DnewVersion=${{ needs.bump.outputs.major_version }}.${{ needs.bump.outputs.minor_version }}.${{ needs.bump.outputs.build_version }} -DgenerateBackupPoms=false
 
+      - name: Clean Quarkus Maven Plugin Cache
+        run: rm -rf ~/.m2/repository/io/quarkus
+
       - name: Build with Maven 🔨
-        run:  mvn package -DskipTests
+        run:  mvn clean package -DskipTests
 
       - name: Upload target
         uses: actions/upload-artifact@v4
