@@ -84,19 +84,20 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ secrets.DOCKER_HUB_USER }}/${{ secrets.DOCKER_IMAGE_NAME}}:latest
-    deploy:
-      uses: UnterrainerInformatik/deploy-workflow/.github/workflows/workflow.yml@master
-      needs: [ bump, build, docker-build ]
-      with:
-        major_version: ${{ needs.bump.outputs.major_version }}
-        minor_version: ${{ needs.bump.outputs.minor_version }}
-        build_version: ${{ needs.bump.outputs.build_version }}
-      secrets:
-        DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-        DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
-        DEPLOY_SERVER: ${{ secrets.DEPLOY_SERVER }}
-        DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
-        DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
-        DATA_DIR: ${{ secrets.DATA_DIR }}
-        DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
-        DOCKER_IMAGE_NAME: ${{ secrets.DOCKER_IMAGE_NAME }}
+    
+  deploy:
+    uses: UnterrainerInformatik/deploy-workflow/.github/workflows/workflow.yml@master
+    needs: [ bump, build, docker-build ]
+    with:
+      major_version: ${{ needs.bump.outputs.major_version }}
+      minor_version: ${{ needs.bump.outputs.minor_version }}
+      build_version: ${{ needs.bump.outputs.build_version }}
+    secrets:
+      DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+      DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+      DEPLOY_SERVER: ${{ secrets.DEPLOY_SERVER }}
+      DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+      DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
+      DATA_DIR: ${{ secrets.DATA_DIR }}
+      DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
+      DOCKER_IMAGE_NAME: ${{ secrets.DOCKER_IMAGE_NAME }}
