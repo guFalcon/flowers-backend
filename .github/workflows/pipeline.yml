@@ -54,7 +54,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-target
-          path: target/*-runner
+          path: target
 
   docker-build:
     name: Build Docker Image 🐋
