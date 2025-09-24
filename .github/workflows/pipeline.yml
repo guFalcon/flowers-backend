@@ -29,14 +29,18 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-maven-
 
-      - name: Set up Maven 3.9.4 ⚙️
-        uses: stCarolas/setup-maven@v1
+      - name: Set up JDK 21 ⚙️
+        uses: actions/setup-java@v4
         with:
-          maven-version: 3.9.4
+          java-version: '21'
+          distribution: 'temurin'
 
-      - name: Conditionally setup Maven ⚙️
+      - name: Install Maven 3.9.4
         run: |
-          which mvn || (sudo apt update && sudo apt install -y maven)
+          wget https://archive.apache.org/dist/maven/maven-3/3.9.4/binaries/apache-maven-3.9.4-bin.tar.gz
+          tar xzvf apache-maven-3.9.4-bin.tar.gz
+          sudo mv apache-maven-3.9.4 /opt/
+          sudo ln -s /opt/apache-maven-3.9.4/bin/mvn /usr/bin/mvn
 
       - name: Update pom.xml version 💾
         run: |
