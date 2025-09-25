@@ -13,4 +13,5 @@ public class Flower {
     private int petals;
     private String color;
     private double fill;
+    private double rate;
 }
