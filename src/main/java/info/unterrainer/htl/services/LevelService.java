@@ -1,14 +1,21 @@
 package info.unterrainer.htl.services;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import info.unterrainer.htl.ColorUtils;
 import info.unterrainer.htl.dtos.Flower;
 import info.unterrainer.htl.dtos.Level;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.*;
 
 @Slf4j
 @ApplicationScoped
@@ -29,15 +36,22 @@ public class LevelService {
     }
 
     public void restartLevel() {
-        List<Flower> flowers = new ArrayList<>();
-        for (int i = 0; i < 6 + (int)(Math.random()*6); i++) {
+    	List<Flower> flowers = new ArrayList<>();
+        for (int i = 0; i < 6 + (int) (Math.random() * 6); i++) {
+            int petals = 5 + (int) (Math.random() * 5);
+            String baseColor = pickColor();
+            List<String> petalColors = ColorUtils.generatePetalColors(baseColor, petals);
+            String stampColor = ColorUtils.pickStampColor(petalColors.get(0));
+            
             flowers.add(Flower.builder()
                     .id("flower-" + i)
                     .x(Math.random())
                     .y(Math.random())
                     .size(0.08 + Math.random() * 0.05)
-                    .petals(5 + (int)(Math.random()*5))
-                    .color(pickColor())
+                    .petals(petals)
+                    .color(baseColor)
+                    .petalColors(petalColors)
+                    .stampColor(stampColor)
                     .fill(Math.random())
                     .rate(Math.random() * 0.1 + 0.01)
                     .build());
@@ -49,14 +63,23 @@ public class LevelService {
         Optional<Flower> fOpt = currentLevel.getFlowers().stream()
                 .filter(f -> f.getId().equals(flowerId))
                 .findFirst();
+
         if (fOpt.isPresent()) {
             Flower f = fOpt.get();
-            double collected = f.getFill();
-            f.setFill(0); // empty after harvest
+            double fill = f.getFill();
+            if (fill <= 0.1)
+                return 0;
+
+            // Treat fill as radius, yield proportional to area (r²)
+            double collected = Math.pow(fill, 2) * 100.0;
+
+            // Empty after harvest
+            f.setFill(0);
             return collected;
         }
         return 0;
     }
+
 
     private String pickColor() {
         String[] colors = {

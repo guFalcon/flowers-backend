@@ -8,6 +8,7 @@ import java.util.List;
 @Data
 @Builder
 public class Level {
+    @Builder.Default
     private String aspect = "9:16";
     private List<Flower> flowers;
 }

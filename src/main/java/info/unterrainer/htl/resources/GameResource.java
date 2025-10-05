@@ -31,7 +31,8 @@ public class GameResource {
     @Path("/harvest/{id}")
     public Response harvest(@PathParam("id") String flowerId) {
         double honey = service.harvest(flowerId);
-        bus.publish(Map.of("type","harvest","flowerId", flowerId));
+        if (honey == 0)
+            bus.publish(Map.of("type","harvest","flowerId", flowerId));
         return Response.ok(Map.of("flowerId", flowerId, "honey", honey)).build();
     }
 

@@ -1,5 +1,7 @@
 package info.unterrainer.htl.dtos;
 
+import java.util.List;
+
 import lombok.Builder;
 import lombok.Data;
 
@@ -12,6 +14,8 @@ public class Flower {
     private double size;
     private int petals;
     private String color;
+    private List<String> petalColors;
+    private String stampColor;
     private double fill;
     private double rate;
 }
