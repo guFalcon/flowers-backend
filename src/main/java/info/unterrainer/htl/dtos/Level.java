@@ -6,10 +6,11 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 public class Level {
     @Builder.Default
     private String aspect = "9:16";
     private List<Flower> flowers;
     private List<Bee> bees;
+    private String yourBeeId;
 }

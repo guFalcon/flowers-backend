@@ -1,7 +1,5 @@
 package info.unterrainer.htl.resources;
 
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
-import info.unterrainer.htl.dtos.Bee;
 import info.unterrainer.htl.dtos.Level;
 import info.unterrainer.htl.services.EventBusService;
 import info.unterrainer.htl.services.LevelService;
@@ -27,7 +25,10 @@ public class GameResource {
     @GET
     @Path("/level")
     public Level getLevel() {
-        return service.getLevel();
+        Level level = service.getLevel();
+        String id = UUID.randomUUID().toString();
+        service.registerBee(id);
+        return level.toBuilder().yourBeeId(id).build();
     }
 
     @POST

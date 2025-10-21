@@ -38,6 +38,15 @@ public class ColorUtils {
 		return m;
 	}
 
+    public static List<String> getNamedColors() {
+        return NAMED.keySet().stream().sorted().collect(Collectors.toList());
+    }
+
+    public static String pickRandomBaseColor() {
+        var keys = getNamedColors();
+        return keys.get(ThreadLocalRandom.current().nextInt(keys.size()));
+    }
+
 	public static String pickStampColor(String baseColorHex) {
 		Color base = parseColor(baseColorHex);
 		float[] hsb = Color.RGBtoHSB(base.getRed(), base.getGreen(), base.getBlue(), null);

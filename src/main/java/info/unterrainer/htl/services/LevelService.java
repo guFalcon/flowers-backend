@@ -23,8 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 public class LevelService {
     private Level currentLevel;
     private final Map<String, Bee> bees = new HashMap<>();
-    private final String[] beeColors = {"yellow", "orange", "cyan", "lime", "magenta", "white"};
-    private int nextColorIndex = 0;
 
     @Inject
     ObjectMapper mapper;
@@ -60,24 +58,53 @@ public class LevelService {
                     .rate(Math.random() * 0.1 + 0.01)
                     .build());
         }
-        currentLevel = Level.builder().flowers(flowers).build();
+        currentLevel = Level.builder().flowers(flowers).bees(new ArrayList<>(bees.values())).build();
     }
 
     public synchronized Bee registerBee(String id) {
         if (!bees.containsKey(id)) {
+            String baseName = ColorUtils.pickRandomBaseColor();
+            String beeColor = ColorUtils.generatePetalColors(baseName, 1).getFirst();
+
             Bee bee = Bee.builder()
                     .id(id)
                     .x(Math.random())
                     .y(Math.random())
                     .targetX(Math.random())
                     .targetY(Math.random())
-                    .color(beeColors[nextColorIndex++ % beeColors.length])
+                    .color(beeColor)
+                    .lastActive(System.currentTimeMillis())
                     .build();
+
             bees.put(id, bee);
+
+            if (currentLevel != null)
+                currentLevel.setBees(new ArrayList<>(bees.values()));
+
             publishLevel();
             return bee;
         }
         return bees.get(id);
+    }
+
+    @Scheduled(every = "10s")
+    public void cleanupInactiveBees() {
+        long now = System.currentTimeMillis();
+        long timeout = 60_000;
+
+        List<String> toRemove = new ArrayList<>();
+        for (Bee bee : bees.values()) {
+            if (now - bee.getLastActive() > timeout) {
+                toRemove.add(bee.getId());
+            }
+        }
+
+        if (!toRemove.isEmpty()) {
+            toRemove.forEach(bees::remove);
+            currentLevel.setBees(new ArrayList<>(bees.values()));
+            publishLevel();
+            log.info("Removed {} inactive bees", toRemove.size());
+        }
     }
 
     public synchronized void setTarget(String playerId, double x, double y) {
@@ -85,12 +112,11 @@ public class LevelService {
         if (bee != null) {
             bee.setTargetX(x);
             bee.setTargetY(y);
-            eventBusService.publish(Map.of(
-                    "type", "bee-target",
-                    "beeId", playerId,
-                    "x", x,
-                    "y", y
-            ));
+            bee.setLastActive(System.currentTimeMillis());
+            publishLevel();
+        } else {
+            registerBee(playerId);
+            setTarget(playerId, x, y);
         }
     }
 

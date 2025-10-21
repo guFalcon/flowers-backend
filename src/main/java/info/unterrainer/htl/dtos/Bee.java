@@ -12,4 +12,5 @@ public class Bee {
     private double targetX;
     private double targetY;
     private String color;
+    private long lastActive;
 }
