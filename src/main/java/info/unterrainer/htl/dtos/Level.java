@@ -11,4 +11,5 @@ public class Level {
     @Builder.Default
     private String aspect = "9:16";
     private List<Flower> flowers;
+    private List<Bee> bees;
 }

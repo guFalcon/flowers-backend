@@ -1,5 +1,7 @@
 package info.unterrainer.htl.resources;
 
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+import info.unterrainer.htl.dtos.Bee;
 import info.unterrainer.htl.dtos.Level;
 import info.unterrainer.htl.services.EventBusService;
 import info.unterrainer.htl.services.LevelService;
@@ -10,6 +12,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Path("/api")
 @Produces(MediaType.APPLICATION_JSON)
@@ -25,6 +28,15 @@ public class GameResource {
     @Path("/level")
     public Level getLevel() {
         return service.getLevel();
+    }
+
+    @POST
+    @Path("/player/{id}/target")
+    public Response setTarget(@PathParam("id") String playerId, Map<String, Double> payload) {
+        double targetX = payload.getOrDefault("x", 0.0);
+        double targetY = payload.getOrDefault("y", 0.0);
+        service.setTarget(playerId, targetX, targetY);
+        return Response.ok(Map.of("status", "ok")).build();
     }
 
     @POST

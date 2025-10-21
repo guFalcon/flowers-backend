@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.Random;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import info.unterrainer.htl.dtos.Bee;
 
 import info.unterrainer.htl.ColorUtils;
 import info.unterrainer.htl.dtos.Flower;
@@ -21,6 +22,9 @@ import lombok.extern.slf4j.Slf4j;
 @ApplicationScoped
 public class LevelService {
     private Level currentLevel;
+    private final Map<String, Bee> bees = new HashMap<>();
+    private final String[] beeColors = {"yellow", "orange", "cyan", "lime", "magenta", "white"};
+    private int nextColorIndex = 0;
 
     @Inject
     ObjectMapper mapper;
@@ -57,6 +61,37 @@ public class LevelService {
                     .build());
         }
         currentLevel = Level.builder().flowers(flowers).build();
+    }
+
+    public synchronized Bee registerBee(String id) {
+        if (!bees.containsKey(id)) {
+            Bee bee = Bee.builder()
+                    .id(id)
+                    .x(Math.random())
+                    .y(Math.random())
+                    .targetX(Math.random())
+                    .targetY(Math.random())
+                    .color(beeColors[nextColorIndex++ % beeColors.length])
+                    .build();
+            bees.put(id, bee);
+            publishLevel();
+            return bee;
+        }
+        return bees.get(id);
+    }
+
+    public synchronized void setTarget(String playerId, double x, double y) {
+        Bee bee = bees.get(playerId);
+        if (bee != null) {
+            bee.setTargetX(x);
+            bee.setTargetY(y);
+            eventBusService.publish(Map.of(
+                    "type", "bee-target",
+                    "beeId", playerId,
+                    "x", x,
+                    "y", y
+            ));
+        }
     }
 
     public synchronized double harvest(String flowerId) {
@@ -102,6 +137,7 @@ public class LevelService {
     @Scheduled(every = "3s")
     public void publishLevel() {
         try {
+            currentLevel.setBees(new ArrayList<>(bees.values()));
             String json = mapper.writeValueAsString(currentLevel);
             Map<String, Object> msg = new HashMap<>();
             msg.put("type", "level-update");
