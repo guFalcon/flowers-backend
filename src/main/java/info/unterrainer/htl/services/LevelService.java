@@ -87,6 +87,11 @@ public class LevelService {
         return bees.get(id);
     }
 
+    public synchronized Level getLevelForPlayer(String id) {
+        Bee bee = registerBee(id);
+        return currentLevel.toBuilder().yourBeeId(bee.getId()).build();
+    }
+
     @Scheduled(every = "10s")
     public void cleanupInactiveBees() {
         long now = System.currentTimeMillis();

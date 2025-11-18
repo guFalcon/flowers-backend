@@ -24,11 +24,11 @@ public class GameResource {
 
     @GET
     @Path("/level")
-    public Level getLevel() {
-        Level level = service.getLevel();
-        String id = UUID.randomUUID().toString();
-        service.registerBee(id);
-        return level.toBuilder().yourBeeId(id).build();
+    public Level getLevel(@HeaderParam("X-Player-Id") String playerId) {
+        if (playerId == null || playerId.isBlank()) {
+            playerId = UUID.randomUUID().toString();
+        }
+        return service.getLevelForPlayer(playerId);
     }
 
     @POST
