@@ -23,13 +23,13 @@ public class GameResource {
     EventBusService bus;
 
     @GET
-    @Path("/level")
-    public Level getLevel(@HeaderParam("X-Player-Id") String playerId) {
-        if (playerId == null || playerId.isBlank()) {
+    @Path("/level/{playerId}")
+    public Level getLevel(@PathParam("playerId") String playerId) {
+        if (playerId == null || playerId.isBlank())
             playerId = UUID.randomUUID().toString();
-        }
         return service.getLevelForPlayer(playerId);
     }
+
 
     @POST
     @Path("/player/{id}/target")
