@@ -7,6 +7,7 @@ services:
       - LANGUAGE=de_AT:de
     labels:
       - traefik.enable=true
+      - traefik.http.routers.flowers-backend.entrypoints=web,websecure,web-ext,websecure-ext
       - traefik.http.routers.flowers-backend.rule=Host(`flowers-backend.htl.dev`)
       - traefik.http.services.flowers-backend.loadbalancer.server.port=8084
 
