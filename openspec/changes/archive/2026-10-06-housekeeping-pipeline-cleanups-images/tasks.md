@@ -25,4 +25,4 @@
 ## 5. Verification
 
 - [x] 5.1 Run all backend tests and `http/game.http` against `quarkus:dev` on 8084; drive the frontend headless (Playwright) against the local backend and the locally built frontend image: page loads, bee appears, harvest works; stop all servers/containers started and check with `ss`/`docker ps`
-- [ ] 5.2 After push (during archive): watch both pipeline runs to green and check that https://flowers.htl.dev and https://flowers-backend.htl.dev/api/level/check answer
+- [x] 5.2 After push (during archive): watch both pipeline runs to green and check that https://flowers.htl.dev and https://flowers-backend.htl.dev/api/level/check answer
