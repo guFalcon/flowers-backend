@@ -119,7 +119,11 @@ class EventStreamTest {
                         .contains("\"bees\":[")
                         .contains("\"id\":\"" + playerId + "\"")
                         .contains("\"targetX\":0.25")
-                        .contains("\"targetY\":0.75"));
+                        .contains("\"targetY\":0.75")
+                        .contains("\"serverTime\":")
+                        .contains("\"clouds\":[{")
+                        .contains("\"wind\":[{")
+                        .contains("\"path\":[{"));
             } finally {
                 response.cancel(true);
                 if (response.isDone() && !response.isCompletedExceptionally())

@@ -1,37 +1,4 @@
-# game-session Specification
-
-## Purpose
-
-Covers how a player joins the game and steers their bee over the REST API, how the level is
-restarted and idle bees are removed, how every client is kept in sync over SSE, and that the shared
-game state stays consistent while many requests and background jobs run at the same time.
-
-## Requirements
-
-### Requirement: Joining returns the level with the player's own bee
-`GET /api/level/{playerId}` SHALL respond with `200` and a JSON level containing `aspect`,
-`flowers` (between 6 and 11 flowers), `bees` and `yourBeeId` equal to `playerId`. If no bee with that
-id exists, the backend SHALL create one at a random position, standing still (its `targetX`/`targetY`
-equal to its `x`/`y`), with `honey` 0 and a random name (see leaderboard), and include it in `bees`.
-Repeating the request with the same `playerId` SHALL NOT create a second bee, SHALL NOT change its
-position, target, honey or name, and SHALL mark the existing bee as active, so the inactivity timeout
-starts over as it does after steering.
-
-#### Scenario: New player joins
-- **WHEN** a client calls `GET /api/level/p1` and no bee `p1` exists
-- **THEN** the response is `200`, `yourBeeId` is `p1`, `bees` contains exactly one bee with id `p1`, and `flowers` has 6 to 11 entries
-
-#### Scenario: New bee stands still
-- **WHEN** a client calls `GET /api/level/p1` and no bee `p1` exists
-- **THEN** bee `p1` in the response has `honey` 0, `targetX` equal to `x` and `targetY` equal to `y`
-
-#### Scenario: Player rejoins
-- **WHEN** the same client calls `GET /api/level/p1` a second time
-- **THEN** `bees` still contains exactly one bee with id `p1`, with the same colour, name and honey as before
-
-#### Scenario: Rejoining keeps an idle bee alive
-- **WHEN** bee `p1` was last active 50 seconds ago, the client calls `GET /api/level/p1`, and the inactive-bee cleanup runs 20 seconds later
-- **THEN** bee `p1` is still in the level
+## MODIFIED Requirements
 
 ### Requirement: Steering sets the bee's target
 `POST /api/player/{id}/target` with body `{"x": <number>, "y": <number>}` SHALL respond with `200` and
@@ -90,15 +57,6 @@ valid admin token it SHALL do none of this (see admin-access).
 - **WHEN** bee `p1` has honey 400 and the level is restarted with the correct admin token
 - **THEN** bee `p1` has honey 0 in the next level
 
-### Requirement: Inactive bees are removed
-The backend SHALL periodically remove every bee that has not been active for more than 60 seconds and,
-if at least one bee was removed, publish a `level-update` event without those bees. Bees active within
-the last 60 seconds SHALL be kept.
-
-#### Scenario: Idle bee times out
-- **WHEN** bee `p1` was last active more than 60 seconds ago, bee `p2` was active just now, and the cleanup runs
-- **THEN** `p1` is no longer in the level, `p2` still is, and a `level-update` event is published
-
 ### Requirement: Level changes are broadcast as level-update
 The backend SHALL publish an SSE event `{"type": "level-update", "level": <object>}` on
 `GET /api/events`, where `level` is the level as a JSON object (with `aspect`, `serverTime`,
@@ -140,53 +98,6 @@ target, `path` as its current flight path, `honey` as its current honey and `nam
 #### Scenario: Level carries the name
 - **WHEN** bee `p1` is named `Flip` and a level is built
 - **THEN** bee `p1` in that level has `name` `Flip`
-
-### Requirement: Clients apply level-updates to existing flowers
-When the frontend receives a `level-update`, it SHALL match the level's flowers to the flowers on
-screen by `id`. A flower whose position, size, petal count and colours are unchanged SHALL keep its
-on-screen element and only take over the new `fill` and `rate`. A flower whose position, size,
-petal count or colours changed SHALL be redrawn. Flowers new in the level SHALL be added, and
-flowers no longer in the level SHALL be removed.
-
-#### Scenario: Periodic update keeps the flower elements
-- **WHEN** a client shows the level and receives a `level-update` with the same flowers but different fills
-- **THEN** every flower keeps its on-screen element and shows the fill from the update
-
-#### Scenario: Restarted level replaces changed flowers
-- **WHEN** the level was restarted and a `level-update` arrives whose flower `flower-0` has a different position and colours than the one on screen
-- **THEN** the client redraws `flower-0` at its new position with its new colours
-
-#### Scenario: Flower count changes
-- **WHEN** a `level-update` contains fewer or more flowers than are on screen
-- **THEN** flowers missing from the update disappear and new flowers appear, so the screen shows exactly the flowers of the update
-
-### Requirement: Clients predict flower growth at the server's pace
-Between `level-update` events the frontend SHALL grow each flower's displayed fill by its `rate`
-once per second, capped at 1, matching the server's growth step. The fill received in a
-`level-update` or `harvest` event SHALL replace the predicted value.
-
-#### Scenario: Fill grows between updates
-- **WHEN** a flower with fill 0.2 and rate 0.05 is shown and no event arrives for 2 seconds
-- **THEN** the flower shows a fill of about 0.3
-
-#### Scenario: Server value wins
-- **WHEN** the client predicted a fill of 0.4 and a `level-update` reports a fill of 0.35 for that flower
-- **THEN** the flower shows 0.35 and continues growing from there
-
-### Requirement: Game state stays consistent under concurrent access
-Concurrent requests (join, steer, harvest, restart) and the periodic background jobs (flower growth,
-inactive-bee cleanup, level broadcast) SHALL NOT fail with an error caused by concurrent modification,
-and SHALL NOT lose updates: a flower emptied by a successful harvest SHALL have a fill of 0 right after
-the harvest, with growth applied only afterwards, and a level returned to a client SHALL NOT change
-while it is being serialised.
-
-#### Scenario: Many players and background jobs at once
-- **WHEN** many threads join, steer and harvest in parallel while flower growth, cleanup and broadcast run repeatedly
-- **THEN** every request responds successfully, no background job throws, and every bee that joined and stayed active is present in the level afterwards
-
-#### Scenario: Harvest and growth do not interleave
-- **WHEN** a harvest of a filled flower and a flower-growth step happen at the same time
-- **THEN** the flower's fill afterwards is either 0 (growth before harvest) or exactly its rate (growth after harvest), never its pre-harvest fill plus rate
 
 ### Requirement: Clients place bees at their server position
 The frontend SHALL keep the offset between the server clock and its own clock, taken from the

@@ -93,7 +93,7 @@ class LevelServiceConcurrencyTest {
         Flower flower = levelService.getLevel().getFlowers().getFirst();
         String playerId = "concurrency-" + UUID.randomUUID();
         // Arrived on the flower's centre long ago, so every harvest below is judged by fill alone
-        levelService.setTarget(playerId, flower.getX(), flower.getY(), System.currentTimeMillis() - 10_000);
+        LevelServiceTestSupport.placeArrived(levelService, playerId, flower.getX(), flower.getY());
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
             for (int i = 0; i < 2_000; i++) {

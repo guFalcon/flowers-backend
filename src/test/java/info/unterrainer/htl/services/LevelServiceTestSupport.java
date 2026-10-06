@@ -5,8 +5,9 @@ package info.unterrainer.htl.services;
  */
 public final class LevelServiceTestSupport {
 
-    // Longer than any flight across the play area (5 s per unit, diagonal ≈ 1.41)
-    private static final long LONG_AGO_MILLIS = 10_000;
+    // Longer than any flight across the play area, even if slowed by clouds all the way (diagonal ≈ 1.41
+    // units at 0.07 units per second ≈ 20 s)
+    private static final long LONG_AGO_MILLIS = 30_000;
 
     private LevelServiceTestSupport() {
     }

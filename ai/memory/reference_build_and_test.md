@@ -9,7 +9,7 @@ metadata:
 otherwise — mark each line verified once it has run.
 
 - **Backend tests (verified 2026-10-06):** `JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./mvnw test`
-  (47 tests, ~15 s); single class `-Dtest=GameResourceHarvestTest`, single method
+  (153 test runs incl. repeated `WeatherTest`, ~20 s); single class `-Dtest=GameResourceHarvestTest`, single method
   `-Dtest='LevelServiceConcurrencyTest#harvestAndGrowthDoNotInterleave'`.
   `src/test/resources/application.properties` disables the scheduler (call `fillFlowers`/
   `cleanupInactiveBees`/`publishLevel` directly) and sets `quarkus.http.test-port=0` (random port, no
@@ -20,6 +20,11 @@ otherwise — mark each line verified once it has run.
   `services/LevelServiceCleanupTest` (uses package-private `cleanupInactiveBees(long now)`),
   `services/LevelServiceConcurrencyTest` (stress test + harvest/growth interleaving). Bees survive
   between tests (application-scoped, no reset): use unique `UUID` player ids, assert only on own bees.
+  Clouds (since clouds-slow-bees): flight/harvest timing tests call `levelService.useWeather(Weather.none())`
+  AFTER any `restartLevel()` (restart regenerates clouds) and restore a generated `Weather` in `@AfterEach`,
+  because the bean is shared with the REST tests that expect 4–6 clouds. Cloud tests build
+  `new Weather(clouds, List.of(new WindKeyframe(T0, angle)), T0 + 15_000)` (no wind turn for 15 s).
+  `placeArrived` starts 30 s ago (slowed diagonal ≈ 20 s).
   REST Assured sends a form content type on an empty POST → 415 against the class-level
   `@Consumes(JSON)`; set `.contentType(ContentType.JSON)` (browsers send none, which Quarkus accepts).
 - **Backend dev (verified 2026-10-06):** start in the background with
@@ -53,7 +58,9 @@ otherwise — mark each line verified once it has run.
   `route.fetch()` + string replace of the live URL + `route.fulfill`) — routing the SSE request
   itself would buffer the stream. Also fail on any request to the live backend so a missed route
   is noticed. The code lives in ES modules, so its functions are NOT globals in `page.evaluate`:
-  drive the UI through the DOM (clicks, `#honey`, `.flower[data-id]`, `.bee-tint-wrapper.is-self`,
+  drive the UI through the DOM (or import `/state.js`, `/bees.js`, `/clock.js`, `/clouds.js` in
+  `page.evaluate` — same module instances as the app; bee positions = wrapper `style.left/top` + half
+  size, the transform is only jitter) (clicks, `#honey`, `.flower[data-id]`, `.bee-tint-wrapper.is-self`,
   `#connectionStatus.connected`, `#qrModal.open`) or `await import('/flowers.js')` inside
   `page.evaluate`. A MutationObserver on `#playArea` catches the transient `.center.depleted`
   flash of a `harvest` event (the next `level-update` rebuilds the flowers).

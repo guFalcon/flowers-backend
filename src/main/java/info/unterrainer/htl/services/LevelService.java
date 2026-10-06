@@ -15,6 +15,7 @@ import info.unterrainer.htl.dtos.Bee;
 import info.unterrainer.htl.dtos.Flower;
 import info.unterrainer.htl.dtos.HarvestResult;
 import info.unterrainer.htl.dtos.Level;
+import info.unterrainer.htl.dtos.PathKeyframe;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -33,9 +34,15 @@ import lombok.extern.slf4j.Slf4j;
 @ApplicationScoped
 public class LevelService {
     private static final long INACTIVITY_TIMEOUT_MILLIS = 60_000;
-    // Same flight speed as the frontend: 5 s per unit of distance in relative coordinates, at least 0.2 s
-    private static final double FLIGHT_MILLIS_PER_UNIT = 5_000;
+    // Flight speed: 0.2 units per second in relative coordinates (5 s per unit), at least 0.2 s per flight
+    private static final double FLIGHT_SPEED_PER_MILLI = 0.2 / 1000;
     private static final long MIN_FLIGHT_MILLIS = 200;
+    // Inside a cloud a bee flies at 35 % of its speed
+    private static final double CLOUD_SPEED_FACTOR = 0.35;
+    // Time step of the flight simulation against the moving clouds
+    private static final long FLIGHT_STEP_MILLIS = 50;
+    // Bisection steps that locate a cloud entry or exit within one simulation step (50 ms / 2^10 < 0.1 ms)
+    private static final int TRANSITION_BISECTIONS = 10;
     // A harvest request may arrive this early before the computed arrival (network latency)
     private static final long ARRIVAL_TOLERANCE_MILLIS = 500;
     // Radius of the drawn flower centre relative to the flower size, both in play-area heights
@@ -47,6 +54,7 @@ public class LevelService {
     private static final double HONEY_PER_FULL_FLOWER = 50;
 
     private Level currentLevel;
+    private Weather weather;
     private final Map<String, Bee> bees = new HashMap<>();
     // Only used under the lock
     private final Random random = new Random();
@@ -59,7 +67,16 @@ public class LevelService {
 
     @PostConstruct
     void init() {
+        weather = Weather.generate(System.currentTimeMillis(), random);
         restartLevel();
+    }
+
+    /**
+     * Replaces the clouds and the wind. Meant for tests, e.g. {@link Weather#none()} for flights that
+     * are never slowed.
+     */
+    synchronized void useWeather(Weather weather) {
+        this.weather = weather;
     }
 
     /**
@@ -71,7 +88,8 @@ public class LevelService {
     }
 
     public synchronized void restartLevel() {
-    	List<Flower> flowers = new ArrayList<>();
+        weather.regenerateClouds(System.currentTimeMillis(), random);
+        List<Flower> flowers = new ArrayList<>();
         for (int i = 0; i < 6 + (int) (Math.random() * 6); i++) {
             int petals = 5 + (int) (Math.random() * 5);
             String baseColor = ColorUtils.pickRandomBaseColor();
@@ -129,10 +147,7 @@ public class LevelService {
                 .y(y)
                 .targetX(x)
                 .targetY(y)
-                .fromX(x)
-                .fromY(y)
-                .flightStart(now)
-                .flightEnd(now)
+                .path(List.of(new PathKeyframe(now, x, y)))
                 .honey(0)
                 .color(beeColor)
                 .name(name)
@@ -165,10 +180,11 @@ public class LevelService {
     }
 
     /**
-     * Deep copy of the level with the current bees, each placed at its position at {@code now}. Must be
-     * called while holding the lock.
+     * Deep copy of the level with the current bees, each placed at its position at {@code now}, and the
+     * clouds and wind schedule from {@code now} on. Must be called while holding the lock.
      */
     private Level copyLevel(String yourBeeId, long now) {
+        weather.ensureHorizon(now, random);
         List<Flower> flowers = currentLevel.getFlowers().stream()
                 .map(f -> f.toBuilder().build())
                 .toList();
@@ -179,7 +195,10 @@ public class LevelService {
                 })
                 .toList();
         return currentLevel.toBuilder()
+                .serverTime(now)
                 .flowers(new ArrayList<>(flowers))
+                .clouds(new ArrayList<>(weather.copyClouds()))
+                .wind(new ArrayList<>(weather.copyWind()))
                 .bees(new ArrayList<>(beeCopies))
                 .yourBeeId(yourBeeId)
                 .build();
@@ -213,31 +232,87 @@ public class LevelService {
         return toRemove.size();
     }
 
-    public void setTarget(String playerId, double x, double y) {
-        setTarget(playerId, x, y, System.currentTimeMillis());
+    /**
+     * Starts a new flight of the player's bee to (x, y) and returns its path.
+     */
+    public List<PathKeyframe> setTarget(String playerId, double x, double y) {
+        return setTarget(playerId, x, y, System.currentTimeMillis());
     }
 
-    void setTarget(String playerId, double x, double y, long now) {
+    List<PathKeyframe> setTarget(String playerId, double x, double y, long now) {
         registerBee(playerId, now);
-        updateTarget(playerId, x, y, now);
+        List<PathKeyframe> path = updateTarget(playerId, x, y, now);
         publishLevel();
+        return path;
     }
 
-    private synchronized void updateTarget(String playerId, double x, double y, long now) {
+    private synchronized List<PathKeyframe> updateTarget(String playerId, double x, double y, long now) {
         // Re-checks under the lock in case the bee vanished between registerBee and this call
         Bee bee = addBeeIfAbsent(playerId, now).bee();
         // The new flight starts where the bee is now, also when an earlier flight is still under way
         Bee.Position start = bee.positionAt(now);
-        double distance = Math.hypot(x - start.x(), y - start.y());
-        bee.setFromX(start.x());
-        bee.setFromY(start.y());
+        List<PathKeyframe> path = simulateFlight(start, x, y, now);
+        bee.setPath(path);
         bee.setX(start.x());
         bee.setY(start.y());
         bee.setTargetX(x);
         bee.setTargetY(y);
-        bee.setFlightStart(now);
-        bee.setFlightEnd(now + Math.max(Math.round(FLIGHT_MILLIS_PER_UNIT * distance), MIN_FLIGHT_MILLIS));
         bee.setLastActive(now);
+        return bee.getPath();
+    }
+
+    /**
+     * Flies straight from start to (x, y) in steps of 50 ms against the moving clouds and returns the
+     * flight as keyframes: the start, every cloud entry and exit, and the arrival. Must be called while
+     * holding the lock.
+     */
+    private List<PathKeyframe> simulateFlight(Bee.Position start, double x, double y, long now) {
+        double distance = Math.hypot(x - start.x(), y - start.y());
+        if (distance / FLIGHT_SPEED_PER_MILLI < MIN_FLIGHT_MILLIS)
+            return List.of(new PathKeyframe(now, start.x(), start.y()), new PathKeyframe(now + MIN_FLIGHT_MILLIS, x, y));
+
+        // The paths must stay valid while the clients compute clouds from the published schedule
+        weather.ensureHorizon(now, random);
+        double dirX = (x - start.x()) / distance;
+        double dirY = (y - start.y()) / distance;
+        List<PathKeyframe> path = new ArrayList<>();
+        path.add(new PathKeyframe(now, start.x(), start.y()));
+        double travelled = 0;
+        double t = now;
+        boolean inCloud = weather.inCloud(start.x(), start.y(), now);
+        while (true) {
+            double speed = inCloud ? FLIGHT_SPEED_PER_MILLI * CLOUD_SPEED_FACTOR : FLIGHT_SPEED_PER_MILLI;
+            double step = Math.min(FLIGHT_STEP_MILLIS, (distance - travelled) / speed);
+            if (weather.inCloud(start.x() + dirX * (travelled + speed * step),
+                    start.y() + dirY * (travelled + speed * step), Math.round(t + step)) != inCloud) {
+                // Cloud entry or exit within this step: find it and continue from there at the other speed
+                double inside = 0;
+                double outside = step;
+                for (int i = 0; i < TRANSITION_BISECTIONS; i++) {
+                    double mid = (inside + outside) / 2;
+                    boolean midInCloud = weather.inCloud(start.x() + dirX * (travelled + speed * mid),
+                            start.y() + dirY * (travelled + speed * mid), Math.round(t + mid));
+                    if (midInCloud == inCloud)
+                        inside = mid;
+                    else
+                        outside = mid;
+                }
+                travelled += speed * outside;
+                t += outside;
+                inCloud = !inCloud;
+                if (travelled < distance) {
+                    path.add(new PathKeyframe(Math.round(t), start.x() + dirX * travelled, start.y() + dirY * travelled));
+                    continue;
+                }
+            } else {
+                travelled += speed * step;
+                t += step;
+            }
+            if (travelled >= distance - 1e-12)
+                break;
+        }
+        path.add(new PathKeyframe(Math.round(t), x, y));
+        return path;
     }
 
     /**
@@ -254,7 +329,7 @@ public class LevelService {
             return Optional.empty();
         bee.setLastActive(now);
 
-        boolean arrived = now >= bee.getFlightEnd() - ARRIVAL_TOLERANCE_MILLIS;
+        boolean arrived = now >= bee.arrivalTime() - ARRIVAL_TOLERANCE_MILLIS;
         // Within the tolerance the bee counts as arrived, so its position is the target
         Bee.Position position = arrived ? new Bee.Position(bee.getTargetX(), bee.getTargetY()) : bee.positionAt(now);
         Optional<Flower> flower = flowerAt(position);

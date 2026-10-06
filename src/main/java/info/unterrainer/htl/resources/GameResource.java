@@ -2,6 +2,7 @@ package info.unterrainer.htl.resources;
 
 import info.unterrainer.htl.dtos.HarvestResult;
 import info.unterrainer.htl.dtos.Level;
+import info.unterrainer.htl.dtos.PathKeyframe;
 import info.unterrainer.htl.services.EventBusService;
 import info.unterrainer.htl.services.LevelService;
 import io.smallrye.mutiny.Multi;
@@ -10,6 +11,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,8 +40,8 @@ public class GameResource {
     public Response setTarget(@PathParam("id") String playerId, Map<String, Double> payload) {
         double targetX = payload.getOrDefault("x", 0.0);
         double targetY = payload.getOrDefault("y", 0.0);
-        service.setTarget(playerId, targetX, targetY);
-        return Response.ok(Map.of("status", "ok")).build();
+        List<PathKeyframe> path = service.setTarget(playerId, targetX, targetY);
+        return Response.ok(Map.of("status", "ok", "path", path)).build();
     }
 
     @POST

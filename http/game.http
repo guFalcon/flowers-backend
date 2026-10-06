@@ -3,11 +3,19 @@
 # To watch the harvest event, keep `curl -N http://localhost:8084/api/events` open while running
 # the harvest requests (or run the events request below on its own).
 # level-update events carry the level as a JSON object:
-#   {"type":"level-update","level":{"aspect":…,"flowers":[…],"bees":[…],"yourBeeId":null}}
-# Every bee in a level: {"id","x","y","targetX","targetY","color","lastActive","honey","name"}, where x/y
-# is the bee's current server-side position (it moves along its flight), honey its harvested honey in
-# integer microlitres (µl) and name a random child-friendly name given by the server when the bee is
-# created (kept for the bee's lifetime).
+#   {"type":"level-update","level":{"aspect":…,"serverTime":…,"flowers":[…],"clouds":[…],"wind":[…],
+#    "bees":[…],"yourBeeId":null}}
+# serverTime is the server time (epoch ms) at which the level was built.
+# Every cloud: {"id","x","y","t","size","speed","drift"}: position (x in widths, y in heights) at time t,
+# diameter and drift speed in play-area heights (per second), drift = offset to the wind in radians.
+# wind: [{"t","angle"}…] sorted by t, angle in radians (0 = +x, π/2 = +y), reaching ≥ 60 s past serverTime.
+# A cloud's position at any time follows from its anchor and the wind (see the clouds spec); a bee
+# inside a cloud flies at 35 % speed.
+# Every bee in a level: {"id","x","y","targetX","targetY","color","lastActive","honey","name","path"},
+# where x/y is the bee's current server-side position (it moves along its flight), honey its harvested
+# honey in integer microlitres (µl), name a random child-friendly name given by the server when the bee
+# is created (kept for the bee's lifetime) and path its flight as keyframes [{"t","x","y"}…] (one
+# keyframe for a bee that has never flown; otherwise start, every cloud entry/exit, arrival).
 # harvest events: {"type":"harvest","flowerId":…,"fill":0,"beeId":…,"honey":<the bee's new total in µl>}
 # Admin endpoints need the header X-Admin-Token; quarkus:dev uses the token `dev-admin-token`.
 
@@ -22,9 +30,17 @@ GET {{host}}/api/level/{{playerId}}
     // Fly to the corner farthest from the bee's current position: at least 0.7 units → 3.5 s flight
     client.global.set("farX", bee && bee.x < 0.5 ? "1.0" : "0.0");
     client.global.set("farY", bee && bee.y < 0.5 ? "1.0" : "0.0");
-    client.test("level contains flowers and your bee", () => {
+    client.test("level contains flowers, clouds, wind and your bee", () => {
+        const level = response.body;
         client.assert(response.status === 200, "status " + response.status);
-        client.assert(response.body.flowers.length > 0, "no flowers");
+        client.assert(level.flowers.length > 0, "no flowers");
+        client.assert(typeof level.serverTime === "number", "serverTime " + level.serverTime);
+        client.assert(level.clouds.length >= 4 && level.clouds.length <= 6, "clouds " + level.clouds.length);
+        client.assert(level.clouds.every(c => c.size === 0.1 && c.speed >= 0.02 && c.speed <= 0.05),
+            "clouds " + JSON.stringify(level.clouds));
+        client.assert(level.wind[0].t <= level.serverTime, "wind starts after serverTime");
+        client.assert(level.wind[level.wind.length - 1].t >= level.serverTime + 60000, "wind ends too early");
+        client.assert(level.bees.every(b => Array.isArray(b.path) && b.path.length > 0), "bee without path");
         client.assert(response.body.yourBeeId === "http-client-player", "yourBeeId " + response.body.yourBeeId);
         client.assert(!!bee, "own bee missing");
         client.assert(typeof bee.honey === "number", "honey " + bee.honey);
@@ -34,15 +50,24 @@ GET {{host}}/api/level/{{playerId}}
 %}
 
 ### Set the bee's target: starts a flight on the server and publishes a level-update
+# Answers {"status":"ok","path":[{"t","x","y"}…]}: the flight computed against the drifting clouds,
+# ending at the target at the arrival time.
 POST {{host}}/api/player/{{playerId}}/target
 Content-Type: application/json
 
 {"x": {{farX}}, "y": {{farY}}}
 
 > {%
-    client.test("target is accepted", () => {
+    const path = response.body.path;
+    client.test("target is accepted and returns the path", () => {
         client.assert(response.status === 200, "status " + response.status);
         client.assert(response.body.status === "ok", "status " + response.body.status);
+        client.assert(Array.isArray(path) && path.length >= 2, "path " + JSON.stringify(path));
+        const last = path[path.length - 1];
+        client.assert(last.x === Number(client.global.get("farX")) && last.y === Number(client.global.get("farY")),
+            "path does not end at the target: " + JSON.stringify(last));
+        // At least 0.7 units at 0.2 units/s
+        client.assert(last.t - path[0].t >= 3500, "flight too short: " + (last.t - path[0].t) + " ms");
     });
 %}
 
@@ -115,6 +140,10 @@ Accept: text/event-stream
             throw new Error("level-update carries level as " + typeof data.level + ", expected an object");
         if (!(data.level.flowers.length > 0) || !Array.isArray(data.level.bees))
             throw new Error("level-update level lacks flowers or bees: " + JSON.stringify(data.level));
+        if (!Array.isArray(data.level.clouds) || !Array.isArray(data.level.wind) || typeof data.level.serverTime !== "number")
+            throw new Error("level-update level lacks serverTime, clouds or wind: " + JSON.stringify(data.level));
+        if (!data.level.bees.every(b => Array.isArray(b.path)))
+            throw new Error("level-update bee without path: " + JSON.stringify(data.level.bees));
         unsubscribe();
     });
 %}

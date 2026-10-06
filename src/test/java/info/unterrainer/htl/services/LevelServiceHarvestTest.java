@@ -3,14 +3,19 @@ package info.unterrainer.htl.services;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import info.unterrainer.htl.dtos.Bee;
+import info.unterrainer.htl.dtos.Cloud;
 import info.unterrainer.htl.dtos.Flower;
 import info.unterrainer.htl.dtos.HarvestResult;
+import info.unterrainer.htl.dtos.PathKeyframe;
+import info.unterrainer.htl.dtos.WindKeyframe;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 
@@ -31,12 +36,19 @@ class LevelServiceHarvestTest {
     @BeforeEach
     void setUp() {
         levelService.restartLevel();
+        // Random clouds would make the flight times random
+        levelService.useWeather(Weather.none());
         List<Flower> flowers = levelService.getLevel().getFlowers();
         // Move every flower out of the play area, then place the two used by the tests
         flowers.forEach(f -> place(f, -10, -10, 0));
         flower = flowers.get(0);
         otherFlower = flowers.get(1);
         place(flower, 0.5, 0.5, 0.5);
+    }
+
+    @AfterEach
+    void tearDown() {
+        levelService.useWeather(Weather.generate(System.currentTimeMillis(), new Random()));
     }
 
     @Test
@@ -105,6 +117,24 @@ class LevelServiceHarvestTest {
 
         assertThat(result.gained()).isZero();
         assertThat(flower.getFill()).isEqualTo(0.5);
+    }
+
+    @Test
+    void harvestWaitsForTheArrivalSlowedByACloud() {
+        String playerId = arrivedAt(0.1, 0.5);
+        Cloud cloud = Cloud.builder().id("c").x(0.3).y(0.5).t(T0).size(0.10).speed(0).drift(0).build();
+        levelService.useWeather(new Weather(List.of(cloud), List.of(new WindKeyframe(T0, 0)), T0 + 15_000));
+        List<PathKeyframe> path = levelService.setTarget(playerId, 0.5, 0.5, T0);
+        long arrival = path.getLast().t();
+
+        // Without the cloud the flight would take 2 s; the slowed one takes about 3.65 s
+        HarvestResult early = levelService.harvest(playerId, T0 + 2_000).orElseThrow();
+        HarvestResult onArrival = levelService.harvest(playerId, arrival).orElseThrow();
+
+        assertThat(arrival - T0).isGreaterThan(3_500);
+        assertThat(early.gained()).isZero();
+        assertThat(onArrival).isEqualTo(new HarvestResult(flower.getId(), 13, 13));
+        assertThat(flower.getFill()).isZero();
     }
 
     @Test

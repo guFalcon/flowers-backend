@@ -121,7 +121,11 @@ class GameResourceLevelTest {
 
         JsonPath body = setTarget(playerId, "{\"x\": 0.25, \"y\": 0.75}");
 
-        assertThat(body.getMap("")).isEqualTo(Map.of("status", "ok"));
+        assertThat(body.getString("status")).isEqualTo("ok");
+        List<Map<String, Object>> path = body.getList("path");
+        assertThat(path).isNotEmpty();
+        assertThat(body.getDouble("path[-1].x")).isEqualTo(0.25);
+        assertThat(body.getDouble("path[-1].y")).isEqualTo(0.75);
         JsonPath level = join(playerId);
         assertThat(level.getDouble(beePath(playerId) + ".targetX")).isEqualTo(0.25);
         assertThat(level.getDouble(beePath(playerId) + ".targetY")).isEqualTo(0.75);
@@ -131,6 +135,30 @@ class GameResourceLevelTest {
         JsonNode bee = findBee(updates.getLast(), playerId);
         assertThat(bee.get("targetX").asDouble()).isEqualTo(0.25);
         assertThat(bee.get("targetY").asDouble()).isEqualTo(0.75);
+        assertThat(bee.get("path").get(bee.get("path").size() - 1).get("t").asLong())
+                .isEqualTo(body.getLong("path[-1].t"));
+    }
+
+    @Test
+    void levelCarriesServerTimeCloudsWindAndPaths() {
+        String playerId = newPlayerId();
+        long before = System.currentTimeMillis();
+
+        JsonPath level = join(playerId);
+
+        long after = System.currentTimeMillis();
+        long serverTime = level.getLong("serverTime");
+        assertThat(serverTime).isBetween(before, after);
+        assertThat(level.getList("clouds")).hasSizeBetween(4, 6);
+        assertThat(level.getList("clouds.size", Double.class)).containsOnly(0.10);
+        assertThat(level.getList("clouds.speed", Double.class)).allSatisfy(v -> assertThat(v).isBetween(0.02, 0.05));
+        assertThat(level.getList("clouds.drift", Double.class))
+                .allSatisfy(v -> assertThat(Math.abs(v)).isLessThanOrEqualTo(Math.toRadians(20)));
+        assertThat(level.getList("clouds.t", Long.class)).allSatisfy(t -> assertThat(t).isLessThanOrEqualTo(serverTime));
+        assertThat(level.getLong("wind[0].t")).isLessThanOrEqualTo(serverTime);
+        assertThat(level.getLong("wind[-1].t")).isGreaterThanOrEqualTo(serverTime + 60_000);
+        assertThat(level.getList("bees")).allSatisfy(b -> assertThat(((Map<?, ?>) b).get("path"))
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST).isNotEmpty());
     }
 
     @Test
@@ -177,6 +205,20 @@ class GameResourceLevelTest {
         Level level = levelService.getLevel();
         assertThat(level.getFlowers()).isNotSameAs(previousFlowers).hasSizeBetween(6, 11);
         assertThat(level.getBees()).anyMatch(b -> b.getId().equals(playerId));
+    }
+
+    @Test
+    void restartRegeneratesClouds() {
+        String playerId = newPlayerId();
+        JsonPath before = join(playerId);
+
+        restart();
+
+        JsonPath after = join(playerId);
+        assertThat(after.getList("clouds")).hasSizeBetween(4, 6);
+        // Speeds are drawn from a continuous range, so a new set never repeats the old one
+        assertThat(after.getList("clouds.speed", Double.class))
+                .doesNotContainAnyElementsOf(before.getList("clouds.speed", Double.class));
     }
 
     @Test
