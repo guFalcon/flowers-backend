@@ -19,10 +19,15 @@ public class Weather {
     // Play-area width per height (aspect 9:16), converts horizontal distances to heights
     static final double WIDTH_PER_HEIGHT = 9.0 / 16.0;
 
-    static final int MIN_CLOUDS = 4;
-    static final int MAX_CLOUDS = 6;
+    static final int MIN_CLOUDS = 12;
+    static final int MAX_CLOUDS = 18;
+    // Horizontal extent of the sky in play-area widths (one width beside the play area on each side);
+    // mirrored in clouds.js
+    static final double SKY_MIN_X = -1;
+    static final double SKY_MAX_X = 2;
     // Cloud diameter and drift speed in play-area heights (per second)
-    static final double CLOUD_SIZE = 0.10;
+    static final double MIN_CLOUD_SIZE = 0.06;
+    static final double MAX_CLOUD_SIZE = 0.16;
     static final double MIN_CLOUD_SPEED = 0.02;
     static final double MAX_CLOUD_SPEED = 0.05;
     static final double MAX_DRIFT = Math.toRadians(20);
@@ -107,14 +112,14 @@ public class Weather {
 
     /**
      * Position of the cloud at time {@code t}: its anchor moved along the wind schedule, then wrapped
-     * around the play area.
+     * around the sky.
      */
     public Bee.Position cloudPositionAt(Cloud c, long t) {
         double[] d = displacement(c, Math.min(c.getT(), t), Math.max(c.getT(), t));
         double sign = t >= c.getT() ? 1 : -1;
         double radius = c.getSize() / 2;
-        double x = wrap(c.getX() + sign * d[0] / WIDTH_PER_HEIGHT, radius / WIDTH_PER_HEIGHT);
-        double y = wrap(c.getY() + sign * d[1], radius);
+        double x = wrap(c.getX() + sign * d[0] / WIDTH_PER_HEIGHT, SKY_MIN_X, SKY_MAX_X, radius / WIDTH_PER_HEIGHT);
+        double y = wrap(c.getY() + sign * d[1], 0, 1, radius);
         return new Bee.Position(x, y);
     }
 
@@ -160,11 +165,11 @@ public class Weather {
         return new double[] { dx, dy };
     }
 
-    // A cloud that has completely left the range [0, 1] re-enters on the opposite side
-    private static double wrap(double p, double radius) {
-        double min = -radius;
-        double span = 1 + 2 * radius;
-        return ((p - min) % span + span) % span + min;
+    // A cloud that has completely left the range [min, max] re-enters on the opposite side
+    private static double wrap(double p, double min, double max, double radius) {
+        double start = min - radius;
+        double span = max - min + 2 * radius;
+        return ((p - start) % span + span) % span + start;
     }
 
     // One keyframe at the turn start (old angle), then equal steps up to the new angle
@@ -189,10 +194,10 @@ public class Weather {
         for (int i = 0; i < count; i++)
             clouds.add(Cloud.builder()
                     .id("cloud-" + i)
-                    .x(random.nextDouble())
+                    .x(SKY_MIN_X + random.nextDouble() * (SKY_MAX_X - SKY_MIN_X))
                     .y(random.nextDouble())
                     .t(now)
-                    .size(CLOUD_SIZE)
+                    .size(MIN_CLOUD_SIZE + random.nextDouble() * (MAX_CLOUD_SIZE - MIN_CLOUD_SIZE))
                     .speed(MIN_CLOUD_SPEED + random.nextDouble() * (MAX_CLOUD_SPEED - MIN_CLOUD_SPEED))
                     .drift((random.nextDouble() * 2 - 1) * MAX_DRIFT)
                     .build());

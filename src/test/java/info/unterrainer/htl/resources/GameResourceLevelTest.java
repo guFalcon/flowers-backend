@@ -149,8 +149,10 @@ class GameResourceLevelTest {
         long after = System.currentTimeMillis();
         long serverTime = level.getLong("serverTime");
         assertThat(serverTime).isBetween(before, after);
-        assertThat(level.getList("clouds")).hasSizeBetween(4, 6);
-        assertThat(level.getList("clouds.size", Double.class)).containsOnly(0.10);
+        assertThat(level.getList("clouds")).hasSizeBetween(12, 18);
+        assertThat(level.getList("clouds.x", Double.class)).allSatisfy(v -> assertThat(v).isBetween(-1.0, 2.0));
+        assertThat(level.getList("clouds.y", Double.class)).allSatisfy(v -> assertThat(v).isBetween(0.0, 1.0));
+        assertThat(level.getList("clouds.size", Double.class)).allSatisfy(v -> assertThat(v).isBetween(0.06, 0.16));
         assertThat(level.getList("clouds.speed", Double.class)).allSatisfy(v -> assertThat(v).isBetween(0.02, 0.05));
         assertThat(level.getList("clouds.drift", Double.class))
                 .allSatisfy(v -> assertThat(Math.abs(v)).isLessThanOrEqualTo(Math.toRadians(20)));
@@ -215,7 +217,7 @@ class GameResourceLevelTest {
         restart();
 
         JsonPath after = join(playerId);
-        assertThat(after.getList("clouds")).hasSizeBetween(4, 6);
+        assertThat(after.getList("clouds")).hasSizeBetween(12, 18);
         // Speeds are drawn from a continuous range, so a new set never repeats the old one
         assertThat(after.getList("clouds.speed", Double.class))
                 .doesNotContainAnyElementsOf(before.getList("clouds.speed", Double.class));

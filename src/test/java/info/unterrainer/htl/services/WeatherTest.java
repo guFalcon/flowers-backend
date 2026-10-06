@@ -23,13 +23,24 @@ class WeatherTest {
     void generatedCloudsAreInRange() {
         List<Cloud> clouds = Weather.generate(T0, random).copyClouds();
 
-        assertThat(clouds).hasSizeBetween(4, 6);
+        assertThat(clouds).hasSizeBetween(12, 18);
         assertThat(clouds).allSatisfy(c -> {
-            assertThat(c.getSize()).isEqualTo(0.10);
+            assertThat(c.getX()).isBetween(-1.0, 2.0);
+            assertThat(c.getY()).isBetween(0.0, 1.0);
+            assertThat(c.getSize()).isBetween(0.06, 0.16);
             assertThat(c.getSpeed()).isBetween(0.02, 0.05);
             assertThat(c.getDrift()).isBetween(-Math.toRadians(20), Math.toRadians(20));
             assertThat(c.getT()).isEqualTo(T0);
         });
+    }
+
+    @Test
+    void cloudSizesDiffer() {
+        List<Double> sizes = new ArrayList<>();
+        for (int i = 0; i < 5; i++)
+            Weather.generate(T0, random).copyClouds().forEach(c -> sizes.add(c.getSize()));
+
+        assertThat(sizes.stream().distinct().count()).isGreaterThan(1);
     }
 
     @Test
@@ -58,6 +69,21 @@ class WeatherTest {
         assertPosition(weather.cloudPositionAt(cloud, T0 + 1_000), 0.5, 1.04);
         // 1.0 + 0.06 = 1.06 has passed 1.05 by 0.01 and continues from -0.05
         assertPosition(weather.cloudPositionAt(cloud, T0 + 1_500), 0.5, -0.04);
+    }
+
+    @Test
+    void cloudDriftsPastThePlayAreaAndWrapsAtTheEdgeOfTheSky() {
+        // 0.045 heights/s = 0.08 widths/s; radius 0.05 heights = 0.0889 widths
+        Cloud cloud = cloud(1.0, 0.5, 0.045);
+        Weather weather = constantWind(cloud, 0);
+        double radius = 0.05 / (9.0 / 16.0);
+
+        // Beyond the play area the cloud is not wrapped
+        assertPosition(weather.cloudPositionAt(cloud, T0 + 6_250), 1.5, 0.5);
+        // 1.0 + 1.04 = 2.04 is still inside the wrap range
+        assertPosition(weather.cloudPositionAt(cloud, T0 + 13_000), 2.04, 0.5);
+        // 1.0 + 1.2 = 2.2 has passed 2 + r and continues from -1 - r
+        assertPosition(weather.cloudPositionAt(cloud, T0 + 15_000), -1 - radius + (2.2 - (2 + radius)), 0.5);
     }
 
     @Test
@@ -159,7 +185,7 @@ class WeatherTest {
         weather.regenerateClouds(T0, random);
 
         assertThat(weather.copyWind()).isEqualTo(wind);
-        assertThat(weather.copyClouds()).hasSizeBetween(4, 6);
+        assertThat(weather.copyClouds()).hasSizeBetween(12, 18);
     }
 
     // Consecutive keyframes at most 0.5 s apart belong to one turn

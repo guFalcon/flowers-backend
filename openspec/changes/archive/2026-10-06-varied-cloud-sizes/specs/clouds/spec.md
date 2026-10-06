@@ -1,12 +1,4 @@
-# clouds Specification
-
-## Purpose
-
-Covers the small clouds that drift over the meadow with the wind: how the server generates them and
-the wind, how both are published so every client computes the same cloud positions, how a cloud
-slows a bee flying through it, and how the frontend draws the clouds.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: The level has drifting clouds
 Every level SHALL contain between 12 and 18 clouds. Each cloud SHALL have its own diameter between
@@ -33,21 +25,6 @@ from widths to heights with the aspect ratio 9:16.
 #### Scenario: Restart creates new clouds
 - **WHEN** the level is restarted with the correct admin token
 - **THEN** the next level has 12 to 18 clouds with newly chosen positions, sizes, speeds and drifts
-
-### Requirement: One wind drives all clouds
-The server SHALL keep one wind direction for all clouds. The wind SHALL change direction every 15 to
-30 seconds by a random angle of at most ±60°, spread evenly over a turn of 5 to 8 seconds in steps of
-at most 0.5 seconds, and SHALL hold its direction between turns. Every level the server returns or
-publishes SHALL contain the wind schedule from at most the level's `serverTime` until at least 60
-seconds after it.
-
-#### Scenario: Schedule reaches into the future
-- **WHEN** a level is built at server time T
-- **THEN** its `wind` starts at or before T and its last entry lies at least 60 seconds after T
-
-#### Scenario: Gradual turns
-- **WHEN** the wind turns
-- **THEN** the angle changes in equal steps at most 0.5 seconds apart, the turn takes 5 to 8 seconds in total and changes the direction by at most 60°, and the next turn starts 15 to 30 seconds after this one started
 
 ### Requirement: Cloud positions are computable from the published data
 The level SHALL carry:
@@ -83,30 +60,6 @@ a client computing it from the published data sees the clouds where the server s
 #### Scenario: Same position on server and client
 - **WHEN** the frontend computes a cloud's position from the latest level for some time within the schedule
 - **THEN** the result equals the position the server uses for that cloud at that time
-
-### Requirement: Clouds slow bees down
-While a bee's centre lies within a cloud (its distance to the cloud's centre, in play-area heights,
-is at most the cloud's radius), the bee SHALL fly at 35 % of its normal speed. Outside clouds it
-SHALL fly at its normal speed of 0.2 units per second (5 seconds per unit of distance in relative
-coordinates). Overlapping clouds SHALL NOT slow the bee further. The server SHALL account for the
-clouds' movement during the whole flight when computing it, and its computed arrival time SHALL be
-within 0.1 seconds of the exact arrival time.
-
-#### Scenario: Flight through a resting cloud
-- **WHEN** a cloud with speed 0 lies at (0.4, 0.5) and bee `p1` flies from (0.2, 0.5) to (0.6, 0.5)
-- **THEN** the flight takes about 3.65 seconds (±0.1 s) instead of 2 seconds, and the bee is slowed only while it is between x ≈ 0.311 and x ≈ 0.489
-
-#### Scenario: Flight past a cloud
-- **WHEN** no cloud touches the straight line from (0.2, 0.5) to (0.6, 0.5) during the flight
-- **THEN** the flight takes 2 seconds
-
-#### Scenario: A drifting cloud catches the bee
-- **WHEN** a cloud drifts across the bee's straight line and reaches it while the bee is passing
-- **THEN** the bee is slowed for as long as its centre is inside the moving cloud
-
-#### Scenario: Harvest waits for the slowed arrival
-- **WHEN** bee `p1` flies through a cloud to a filled flower, and the client posts to `/api/player/p1/harvest` at the time the flight would have arrived without the cloud (more than 500 ms before the slowed arrival)
-- **THEN** the response has `gained` 0 and the flower's fill is unchanged
 
 ### Requirement: Clients draw the clouds
 The frontend SHALL draw every cloud of the latest level as a soft, semi-transparent cloud of the

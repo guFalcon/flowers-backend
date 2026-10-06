@@ -22,7 +22,7 @@ otherwise — mark each line verified once it has run.
   between tests (application-scoped, no reset): use unique `UUID` player ids, assert only on own bees.
   Clouds (since clouds-slow-bees): flight/harvest timing tests call `levelService.useWeather(Weather.none())`
   AFTER any `restartLevel()` (restart regenerates clouds) and restore a generated `Weather` in `@AfterEach`,
-  because the bean is shared with the REST tests that expect 4–6 clouds. Cloud tests build
+  because the bean is shared with the REST tests that expect 12–18 clouds. Cloud tests build
   `new Weather(clouds, List.of(new WindKeyframe(T0, angle)), T0 + 15_000)` (no wind turn for 15 s).
   `placeArrived` starts 30 s ago (slowed diagonal ≈ 20 s).
   REST Assured sends a form content type on an empty POST → 415 against the class-level
