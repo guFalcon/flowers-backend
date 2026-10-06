@@ -1,0 +1,21 @@
+# Project Memory
+- [User profile](user_profile.md) — Gerald; German in chat, English in the repo; licensed electrician; wants evidence over guesswork
+- [flowers project](project_flowers.md) — Bee/flower teaching game; backend repo is the control centre, frontend ~/source/htl/js/flowers-frontend driven from here; push to main redeploys flowers.htl.dev / flowers-backend.htl.dev
+- [Announce and explain code changes before making them](feedback_announce_changes_first.md) — A diagnosis request means diagnose only; describe intended edits and wait
+- [No code changes outside an opsx:propose](feedback_openspec_only_changes.md) — Every change in both repos goes through OpenSpec (spec tree lives here); implementation via /opsx:apply
+- [Contract changes cover both repos](feedback_contract_both_repos.md) — REST/SSE change ⇒ backend, frontend and .http files in the same change
+- [Clear between OpenSpec phases](feedback_clear_between_opsx_phases.md) — Pause after plan, propose, apply and before archive+commit so Gerald can /clear
+- [Check open-proposals when asked what to do](feedback_check_open_proposals.md) — Read ./ai/open-proposals.md first; delete an entry (never tick it off) once it becomes an opsx change
+- [Chat language is German](feedback_conversation_language_german.md) — Replies in German from the first message; repo content stays English
+- [Code in English only](feedback_english_only.md) — Identifiers, comments, logs, docs, commits: English
+- [Tests are welcome](feedback_tests_welcome.md) — Write backend tests (JUnit 5 + AssertJ, @QuarkusTest) freely; frontend via headless browser
+- [Run relevant tests before push](feedback_tests_before_push.md) — CI runs no tests; run the tests that make sense for the change before commit/push
+- [Always add .http test files for REST endpoints](feedback_http_tests.md) — Create/update http/*.http and run them against quarkus:dev on :8084
+- [Evidence over speculation](feedback_evidence_over_speculation.md) — When the cause is not in the logs, add targeted diagnostic logging and wait for a reproduction instead of theorising
+- [Diagrams always PlantUML](feedback_diagrams_plantuml.md) — .puml + rendered SVG; render via plantuml.unterrainer.info with -L and charset=utf-8
+- [Click through UI checks myself](feedback_ui_tests_myself.md) — Manual-check tasks: drive the frontend headless (Playwright) myself, don't hand click steps to Gerald
+- [Stop own servers](feedback_stop_own_servers.md) — Stop every server/container I started (8084, 8081) and verify with ps/ss/docker
+- [Push all touched repos on archive](feedback_push_shared_ci_without_asking.md) — End of /opsx:archive: commit + push backend, frontend and shared workflow repos the change touched; ask only when something is off; redeploy is never a concern
+- [Machine JDK setup](reference_machine_jdk.md) — Default JDK is now 27 (breaks Lombok): run Maven with JAVA_HOME=/usr/lib/jvm/java-21-openjdk; frontend Node 20
+- [Build and test commands](reference_build_and_test.md) — Dev/test/image/.http/Playwright commands for backend and frontend (mostly not yet verified for flowers)
+- [CI runners](reference_ci_runners.md) — babylon5 vs dev1; flowers pipelines and shared workflows (npm ci, Node 24 majors, WireGuard-or-none); runner-too-old fix

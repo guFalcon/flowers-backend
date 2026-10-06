@@ -43,3 +43,7 @@ nb-configuration.xml
 /.quarkus/cli/plugins/
 # TLS Certificates
 .certs/
+
+# --- Claude / AI ---
+.claude/settings.local.json
+/ai/secrets/

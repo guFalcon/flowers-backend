@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh workflow run:*)",
+      "Bash(git push:*)",
+      "Bash(docker run --rm --network host -v *:/secrets:ro * mcr.microsoft.com/playwright:* node *)",
+      "Bash(docker run --rm --network host -v *:/secrets:ro -v *:/out * mcr.microsoft.com/playwright:* node *)"
+    ]
+  }
+}
