@@ -12,16 +12,6 @@ hand-rolled build/docker jobs with the shared `docker-build-workflow` like the f
 manual Maven 3.9.4 install step becomes unnecessary with the Maven wrapper. See
 `ai/memory/reference_ci_runners.md`.
 
-## Backend tests
-There is no `src/test` yet. A first `@QuarkusTest` suite for `GameResource` (level, target,
-harvest, restart, SSE events) would give later changes a safety net.
-
-## Thread-safety of LevelService
-`LevelService.bees` is a plain `HashMap`; the `@Scheduled` methods `cleanupInactiveBees()`,
-`publishLevel()` and `fillFlowers()` are not `synchronized`, while `setTarget`/`registerBee`/`harvest`
-are. Concurrent clicks can raise `ConcurrentModificationException` and race on `Flower.fill`. Use a
-`ConcurrentHashMap` and/or synchronize all mutating and iterating paths; `restartLevel()` too.
-
 ## level-update payload is double-encoded
 `publishLevel()` serialises the level to a JSON string and nests it in the event (`level` is a
 string); the frontend re-parses it. Send the `Level` object directly. Contract change → both repos.

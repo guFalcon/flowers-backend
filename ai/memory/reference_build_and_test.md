@@ -8,14 +8,25 @@ metadata:
 **Not yet verified for flowers** (taken from the READMEs/configs on 2026-10-05) unless marked
 otherwise — mark each line verified once it has run.
 
-- **Backend dev:** `./mvnw quarkus:dev` → http://localhost:8084 (`quarkus.http.port=8084`), Dev UI
-  at `/q/dev/`, Swagger UI via smallrye-openapi at `/q/swagger-ui`. No Dev Services (no database).
-- **Backend tests (verified 2026-10-06):** `JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./mvnw test`;
-  single class `-Dtest=GameResourceHarvestTest`. `src/test/resources/application.properties`
-  disables the scheduler. REST Assured sends a form content type on an empty POST → 415 against
-  the class-level `@Consumes(JSON)`; set `.contentType(ContentType.JSON)` (browsers send none,
-  which Quarkus accepts). `@QuarkusTest` binds 8081 by default — that clashes with the frontend dev
-  server; stop it first or set `quarkus.http.test-port`.
+- **Backend tests (verified 2026-10-06):** `JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./mvnw test`
+  (15 tests, ~10 s); single class `-Dtest=GameResourceHarvestTest`, single method
+  `-Dtest='LevelServiceConcurrencyTest#harvestAndGrowthDoNotInterleave'`.
+  `src/test/resources/application.properties` disables the scheduler (call `fillFlowers`/
+  `cleanupInactiveBees`/`publishLevel` directly) and sets `quarkus.http.test-port=0` (random port, no
+  clash with the frontend dev server on 8081; REST Assured and `@TestHTTPResource` follow it).
+  Test classes: `resources/GameResourceHarvestTest` (harvest), `resources/GameResourceLevelTest`
+  (join/rejoin, snapshot, target, restart), `resources/EventStreamTest` (real SSE via
+  `java.net.http.HttpClient`, retries the harvest until the subscriber is registered),
+  `services/LevelServiceCleanupTest` (uses package-private `cleanupInactiveBees(long now)`),
+  `services/LevelServiceConcurrencyTest` (stress test + harvest/growth interleaving). Bees survive
+  between tests (application-scoped, no reset): use unique `UUID` player ids, assert only on own bees.
+  REST Assured sends a form content type on an empty POST → 415 against the class-level
+  `@Consumes(JSON)`; set `.contentType(ContentType.JSON)` (browsers send none, which Quarkus accepts).
+- **Backend dev (verified 2026-10-06):** start in the background with
+  `JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./mvnw quarkus:dev -Dquarkus.console.enabled=false`, wait for
+  `Listening on: http://localhost:8084` in the log. Dev UI at `/q/dev/`, Swagger UI at
+  `/q/swagger-ui` (not yet checked); no Dev Services (no database). Stop with `pkill -f quarkus:dev` in its own call
+  (it also matches the invoking shell → exit 144), then check `ss -ltn | grep 8084`.
 - **Backend image:** `./mvnw package -DskipTests && docker build -f src/main/docker/Dockerfile.jvm -t flowers-backend:local .`
 - **Frontend dev:** `cd ~/source/htl/js/flowers-frontend && npm ci && npm start` (nodemon) →
   http://localhost:8081 (`INTERNAL_PORT` overrides). For a local backend switch the `SERVER`
@@ -23,7 +34,7 @@ otherwise — mark each line verified once it has run.
   allows `http://localhost:8080` and `:8081`.
 - **Frontend CI check:** the shared `npm-build-workflow` runs `npm ci`, so `package-lock.json` must
   stay in sync with `package.json`; verify with `docker run --rm -v "$PWD":/app -w /app node:20 sh -c "npm ci && npm run build"`.
-- **.http files (verified for flowers 2026-10-06 with `http/game.http`, plain `docker run … jetbrains/intellij-http-client game.http`
+- **.http files (verified for flowers 2026-10-06 with `http/game.http`, plain `cd http && docker run --rm --network host -v "$PWD":/workdir jetbrains/intellij-http-client game.http`
   using an in-file `@host`; in-file `@vars` are NOT visible to `request.variables.get` or `{{…}}` inside
   `> {% %}` handlers — use literals there; the trailing SSE request terminates on its own):** `cd http && docker run --rm --network host -v "$PWD":/workdir
   jetbrains/intellij-http-client --env-file http-client.env.json --env dev *.http`;
