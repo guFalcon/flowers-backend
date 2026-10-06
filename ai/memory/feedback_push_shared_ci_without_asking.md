@@ -19,3 +19,11 @@ uncommitted work in a repo, a force push, or a push not covered by the change. A
 either flowers repo redeploys the live game ([[project_flowers]]) — Gerald (2026-10-06): "Das mit dem
 deployen ist nie ein Problem." Never raise the redeploy as a concern or caveat. The phase-boundary
 pause before archive stays ([[feedback_clear_between_opsx_phases]]).
+
+**Push order:** push a shared workflow repo *before* the flowers repo that uses its new
+input/secret. Otherwise the caller's pipeline fails with `startup_failure` (undeclared secret) —
+happened 2026-10-06 in server-authoritative-game-state with `EXTRA_ENV` of `deploy-workflow`.
+Also check that a shared-workflow change marked done in tasks.md is actually committed and pushed.
+If my push to the shared repo is not permitted, give Gerald the exact `! git … push` line; then
+re-run the caller with `gh workflow run pipeline.yml --ref main` (written down at Gerald's
+request, 2026-10-06).
