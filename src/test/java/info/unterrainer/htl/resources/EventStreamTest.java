@@ -8,7 +8,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -68,6 +70,59 @@ class EventStreamTest {
                 client.shutdownNow();
             }
         }
+    }
+
+    @Test
+    void levelUpdateCarriesLevelAsObject() throws Exception {
+        String playerId = UUID.randomUUID().toString();
+        // Join before subscribing, so the only level-update naming this bee is the one after the target
+        levelService.registerBee(playerId);
+        Flower flower = levelService.getLevel().getFlowers().getFirst();
+
+        HttpRequest request = HttpRequest.newBuilder(eventsUri)
+                .header("Accept", "text/event-stream")
+                .build();
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            CompletableFuture<HttpResponse<Stream<String>>> response = client.sendAsync(request,
+                    HttpResponse.BodyHandlers.ofLines());
+            CompletableFuture<Optional<String>> levelLine = response
+                    .thenApplyAsync(r -> r.body()
+                            .filter(line -> line.startsWith("data:"))
+                            .filter(line -> line.contains("\"type\":\"level-update\""))
+                            .filter(line -> line.contains(playerId))
+                            .findFirst())
+                    .orTimeout(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+            try {
+                // The server registers the subscriber asynchronously; set the target until the event shows up
+                long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS;
+                while (!levelLine.isDone() && System.currentTimeMillis() < deadline) {
+                    setTarget(playerId, 0.25, 0.75);
+                    Thread.sleep(100);
+                }
+
+                assertThat(levelLine.get()).hasValueSatisfying(line -> assertThat(line)
+                        .contains("\"level\":{")
+                        .contains("\"flowers\":[")
+                        .contains("\"id\":\"" + flower.getId() + "\"")
+                        .contains("\"bees\":[")
+                        .contains("\"id\":\"" + playerId + "\"")
+                        .contains("\"targetX\":0.25")
+                        .contains("\"targetY\":0.75"));
+            } finally {
+                response.cancel(true);
+                if (response.isDone() && !response.isCompletedExceptionally())
+                    response.get().body().close();
+                client.shutdownNow();
+            }
+        }
+    }
+
+    private void setTarget(String playerId, double x, double y) {
+        given()
+                .contentType(ContentType.JSON)
+                .body(Map.of("x", x, "y", y))
+                .when().post("/api/player/{id}/target", playerId)
+                .then().statusCode(200);
     }
 
     private void harvest(String flowerId) {

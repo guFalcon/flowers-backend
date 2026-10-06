@@ -7,11 +7,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import info.unterrainer.htl.dtos.Bee;
-
 import info.unterrainer.htl.ColorUtils;
+import info.unterrainer.htl.dtos.Bee;
 import info.unterrainer.htl.dtos.Flower;
 import info.unterrainer.htl.dtos.Level;
 import io.quarkus.scheduler.Scheduled;
@@ -33,8 +30,6 @@ public class LevelService {
     private Level currentLevel;
     private final Map<String, Bee> bees = new HashMap<>();
 
-    @Inject
-    ObjectMapper mapper;
     @Inject
     EventBusService eventBusService;
 
@@ -121,6 +116,13 @@ public class LevelService {
     }
 
     private synchronized Level snapshotFor(String beeId) {
+        return copyLevel(beeId);
+    }
+
+    /**
+     * Deep copy of the level with the current bees. Must be called while holding the lock.
+     */
+    private Level copyLevel(String yourBeeId) {
         List<Flower> flowers = currentLevel.getFlowers().stream()
                 .map(f -> f.toBuilder().build())
                 .toList();
@@ -130,7 +132,7 @@ public class LevelService {
         return currentLevel.toBuilder()
                 .flowers(new ArrayList<>(flowers))
                 .bees(new ArrayList<>(beeCopies))
-                .yourBeeId(beeId)
+                .yourBeeId(yourBeeId)
                 .build();
     }
 
@@ -225,12 +227,14 @@ public class LevelService {
         }
     }
 
-    private synchronized Map<String, Object> buildLevelUpdate() throws JsonProcessingException {
-        currentLevel.setBees(new ArrayList<>(bees.values()));
-        String json = mapper.writeValueAsString(currentLevel);
+    /**
+     * Builds the level-update event around a deep copy of the level, so it is serialised by the SSE
+     * writer outside the lock without seeing concurrent changes.
+     */
+    private synchronized Map<String, Object> buildLevelUpdate() {
         Map<String, Object> msg = new HashMap<>();
         msg.put("type", "level-update");
-        msg.put("level", json);
+        msg.put("level", copyLevel(null));
         return msg;
     }
 }

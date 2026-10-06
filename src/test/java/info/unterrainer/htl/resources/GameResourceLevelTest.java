@@ -187,11 +187,11 @@ class GameResourceLevelTest {
                 .extract().jsonPath();
     }
 
-    private List<JsonNode> levelUpdates() throws Exception {
+    private List<JsonNode> levelUpdates() {
         List<JsonNode> levels = new ArrayList<>();
         for (Object e : events)
             if (e instanceof Map<?, ?> m && "level-update".equals(m.get("type")))
-                levels.add(mapper.readTree((String) m.get("level")));
+                levels.add(mapper.valueToTree(m.get("level")));
         return levels;
     }
 

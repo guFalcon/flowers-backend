@@ -40,6 +40,10 @@ otherwise — mark each line verified once it has run.
   jetbrains/intellij-http-client --env-file http-client.env.json --env dev *.http`;
   `-V baseUrl=…` overrides the env file. `client.test(...)` callbacks run after the handler body,
   so read a global into a `const` before a later `client.global.set` overwrites it.
+  SSE checks (verified 2026-10-06): `response.body.onEachLine((line, unsubscribe) => …)` gets raw
+  lines (`data:{…}`, blank lines) — strip the `data:` prefix before `JSON.parse`. Inside that callback
+  `client.test()`/`client.log()` are silently ignored by the CLI; `throw new Error(…)` fails the run
+  (exit 1), so assert by throwing, then `unsubscribe()`.
 - **Headless browser (verified for flowers 2026-10-06, after the ES-module split):** rewrite
   `SERVER` by routing `config.js` (`context.route(url => url.pathname === '/config.js', …)`,
   `route.fetch()` + string replace of the live URL + `route.fulfill`) — routing the SSE request

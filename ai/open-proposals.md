@@ -12,10 +12,6 @@ hand-rolled build/docker jobs with the shared `docker-build-workflow` like the f
 manual Maven 3.9.4 install step becomes unnecessary with the Maven wrapper. See
 `ai/memory/reference_ci_runners.md`.
 
-## level-update payload is double-encoded
-`publishLevel()` serialises the level to a JSON string and nests it in the event (`level` is a
-string); the frontend re-parses it. Send the `Level` object directly. Contract change → both repos.
-
 ## Server trusts the client
 Any client can harvest any flower from anywhere (no bee-position check), `POST /api/admin/restart` is
 unprotected (frontend admin mode is just `?admin=true`), and the honey score lives only in the
@@ -26,14 +22,6 @@ leaderboard entry.
 `GET /api/level/{playerId}` registers a bee as a side effect; `lastActive` is only refreshed by
 `setTarget`. `LevelService.pickColor()` duplicates the `ColorUtils` palette and lists `salmon` twice.
 Unused `Dockerfile.native*`/`legacy-jar`. German comments in `GameResource`/`application.properties`.
-
-## Frontend rebuilds all flowers on every level-update
-`buildLevel()` removes and recreates every flower DOM node on each `level-update` (every 3 s plus
-every player click). Update flowers in place (by id) instead.
-
-## Flower fill computed twice
-Client grows `fill` by `rate` every 2 s, server every 1 s — the two drift until the next
-`level-update`. Either take fill only from the server or use the same rate/interval.
 
 ## Frontend Dockerfile and dependencies
 `npm install -only=production` is a typo (installs everything; use `npm ci --omit=dev`); files are

@@ -2,6 +2,8 @@
 # Run in IntelliJ or with the JetBrains HTTP client CLI against `./mvnw quarkus:dev`.
 # To watch the harvest event, keep `curl -N http://localhost:8084/api/events` open while running
 # the harvest requests (or run the events request below on its own).
+# level-update events carry the level as a JSON object:
+#   {"type":"level-update","level":{"aspect":…,"flowers":[…],"bees":[…],"yourBeeId":null}}
 
 @host = http://localhost:8084
 @playerId = http-client-player
@@ -15,6 +17,19 @@ GET {{host}}/api/level/{{playerId}}
         client.assert(response.status === 200, "status " + response.status);
         client.assert(response.body.flowers.length > 0, "no flowers");
         client.assert(!!response.body.yourBeeId, "yourBeeId " + response.body.yourBeeId);
+    });
+%}
+
+### Set the bee's target: publishes a level-update whose level contains the bee with this target
+POST {{host}}/api/player/{{playerId}}/target
+Content-Type: application/json
+
+{"x": 0.25, "y": 0.75}
+
+> {%
+    client.test("target is accepted", () => {
+        client.assert(response.status === 200, "status " + response.status);
+        client.assert(response.body.status === "ok", "status " + response.body.status);
     });
 %}
 
@@ -52,3 +67,19 @@ POST {{host}}/api/harvest/no-such-flower
 ### Event stream (text/event-stream): level-update every 3 s, harvest after a successful harvest
 GET {{host}}/api/events
 Accept: text/event-stream
+
+> {%
+    // client.test() is not evaluated inside a streaming callback; a thrown error fails the run
+    response.body.onEachLine((line, unsubscribe) => {
+        if (typeof line !== "string" || !line.startsWith("data:"))
+            return;
+        const data = JSON.parse(line.substring("data:".length));
+        if (data.type !== "level-update")
+            return;
+        if (typeof data.level !== "object")
+            throw new Error("level-update carries level as " + typeof data.level + ", expected an object");
+        if (!(data.level.flowers.length > 0) || !Array.isArray(data.level.bees))
+            throw new Error("level-update level lacks flowers or bees: " + JSON.stringify(data.level));
+        unsubscribe();
+    });
+%}
