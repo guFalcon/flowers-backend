@@ -4,8 +4,10 @@
 # the harvest requests (or run the events request below on its own).
 # level-update events carry the level as a JSON object:
 #   {"type":"level-update","level":{"aspect":…,"flowers":[…],"bees":[…],"yourBeeId":null}}
-# Every bee in a level: {"id","x","y","targetX","targetY","color","lastActive","honey"}, where x/y is the
-# bee's current server-side position (it moves along its flight) and honey its score.
+# Every bee in a level: {"id","x","y","targetX","targetY","color","lastActive","honey","name"}, where x/y
+# is the bee's current server-side position (it moves along its flight), honey its score and name a
+# random child-friendly name given by the server when the bee is created (kept for the bee's lifetime).
+# harvest events: {"type":"harvest","flowerId":…,"fill":0,"beeId":…,"honey":<the bee's new total>}
 # Admin endpoints need the header X-Admin-Token; quarkus:dev uses the token `dev-admin-token`.
 
 @host = http://localhost:8084
@@ -25,6 +27,7 @@ GET {{host}}/api/level/{{playerId}}
         client.assert(response.body.yourBeeId === "http-client-player", "yourBeeId " + response.body.yourBeeId);
         client.assert(!!bee, "own bee missing");
         client.assert(typeof bee.honey === "number", "honey " + bee.honey);
+        client.assert(typeof bee.name === "string" && bee.name.length > 0, "name " + bee.name);
         client.assert(bee.fromX === undefined && bee.flightEnd === undefined, "flight fields leak: " + JSON.stringify(bee));
     });
 %}
@@ -44,7 +47,7 @@ Content-Type: application/json
 
 ### Harvest while the bee is still in flight: {"flowerId":…|null,"gained":0,"total":<honey>}, no event
 # After arriving on a flower with fill > 0.1, the same request yields gained = round(fill² × 1000),
-# empties the flower and publishes {"type":"harvest","flowerId":…,"fill":0}.
+# empties the flower and publishes {"type":"harvest","flowerId":…,"fill":0,"beeId":…,"honey":<total>}.
 POST {{host}}/api/player/{{playerId}}/harvest
 
 > {%

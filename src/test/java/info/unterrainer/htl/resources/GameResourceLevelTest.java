@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import info.unterrainer.htl.BeeNames;
 import info.unterrainer.htl.ColorUtils;
 import info.unterrainer.htl.dtos.Flower;
 import info.unterrainer.htl.dtos.Level;
@@ -164,12 +167,7 @@ class GameResourceLevelTest {
         List<Flower> previousFlowers = levelService.getLevel().getFlowers();
         events.clear();
 
-        JsonPath body = given()
-                .contentType(ContentType.JSON)
-                .header("X-Admin-Token", "test-admin-token")
-                .when().post("/api/admin/restart")
-                .then().statusCode(200)
-                .extract().jsonPath();
+        JsonPath body = restart();
 
         assertThat(body.getString("status")).isEqualTo("ok");
         assertThat(body.getString("message")).isEqualTo("Level restarted");
@@ -179,6 +177,50 @@ class GameResourceLevelTest {
         Level level = levelService.getLevel();
         assertThat(level.getFlowers()).isNotSameAs(previousFlowers).hasSizeBetween(6, 11);
         assertThat(level.getBees()).anyMatch(b -> b.getId().equals(playerId));
+    }
+
+    @Test
+    void newBeeGetsANameFromTheList() {
+        String playerId = newPlayerId();
+
+        String name = join(playerId).getString(beePath(playerId) + ".name");
+
+        // Other tests leave bees behind; once they use up the list, a suffix is appended
+        assertThat(name).isNotBlank();
+        assertThat(BeeNames.NAMES).contains(name.replaceFirst(" \\d+$", ""));
+    }
+
+    @Test
+    void nameSurvivesRejoinAndRestart() {
+        String playerId = newPlayerId();
+        String name = join(playerId).getString(beePath(playerId) + ".name");
+
+        assertThat(join(playerId).getString(beePath(playerId) + ".name")).isEqualTo(name);
+        restart();
+        assertThat(join(playerId).getString(beePath(playerId) + ".name")).isEqualTo(name);
+    }
+
+    @Test
+    void tenJoinsYieldTenDistinctNames() {
+        Set<String> names = new HashSet<>();
+        for (int i = 0; i < 10; i++) {
+            String playerId = newPlayerId();
+            names.add(join(playerId).getString(beePath(playerId) + ".name"));
+        }
+
+        assertThat(names).hasSize(10);
+    }
+
+    @Test
+    void nameWithUmlautsRoundTripsThroughJson() {
+        String playerId = newPlayerId();
+        join(playerId);
+        levelService.getLevel().getBees().stream()
+                .filter(b -> b.getId().equals(playerId))
+                .findFirst().orElseThrow()
+                .setName("Gänseblümchen");
+
+        assertThat(join(playerId).getString(beePath(playerId) + ".name")).isEqualTo("Gänseblümchen");
     }
 
     private static String newPlayerId() {
@@ -192,6 +234,15 @@ class GameResourceLevelTest {
     private JsonPath join(String playerId) {
         return given()
                 .when().get("/api/level/{playerId}", playerId)
+                .then().statusCode(200)
+                .extract().jsonPath();
+    }
+
+    private static JsonPath restart() {
+        return given()
+                .contentType(ContentType.JSON)
+                .header("X-Admin-Token", "test-admin-token")
+                .when().post("/api/admin/restart")
                 .then().statusCode(200)
                 .extract().jsonPath();
     }

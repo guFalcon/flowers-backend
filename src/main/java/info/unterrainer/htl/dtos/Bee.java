@@ -16,6 +16,7 @@ public class Bee {
     private String color;
     private long lastActive;
     private long honey;
+    private String name;
 
     // Current flight: a straight line from (fromX, fromY) to the target during [flightStart, flightEnd]
     @JsonIgnore

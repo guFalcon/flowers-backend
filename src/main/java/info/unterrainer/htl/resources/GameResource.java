@@ -50,7 +50,8 @@ public class GameResource {
             return Response.status(Response.Status.NOT_FOUND).build();
         HarvestResult harvest = result.get();
         if (harvest.gained() > 0)
-            bus.publish(Map.of("type", "harvest", "flowerId", harvest.flowerId(), "fill", 0));
+            bus.publish(Map.of("type", "harvest", "flowerId", harvest.flowerId(), "fill", 0,
+                    "beeId", playerId, "honey", harvest.total()));
         return Response.ok(harvest).build();
     }
 

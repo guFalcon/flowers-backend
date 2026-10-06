@@ -5,7 +5,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import info.unterrainer.htl.BeeNames;
 import info.unterrainer.htl.ColorUtils;
 import info.unterrainer.htl.dtos.Bee;
 import info.unterrainer.htl.dtos.Flower;
@@ -43,6 +47,8 @@ public class LevelService {
 
     private Level currentLevel;
     private final Map<String, Bee> bees = new HashMap<>();
+    // Only used under the lock
+    private final Random random = new Random();
 
     @Inject
     EventBusService eventBusService;
@@ -109,6 +115,9 @@ public class LevelService {
 
         String baseName = ColorUtils.pickRandomBaseColor();
         String beeColor = ColorUtils.generatePetalColors(baseName, 1).getFirst();
+        // Picked under the lock, so two simultaneous joins cannot get the same name
+        Set<String> usedNames = bees.values().stream().map(Bee::getName).collect(Collectors.toSet());
+        String name = BeeNames.pick(usedNames, random);
 
         // A new bee stands still at a random position: no flight, target = position
         double x = Math.random();
@@ -125,6 +134,7 @@ public class LevelService {
                 .flightEnd(now)
                 .honey(0)
                 .color(beeColor)
+                .name(name)
                 .lastActive(now)
                 .build();
 

@@ -10,8 +10,10 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
@@ -56,16 +58,23 @@ class EventStreamTest {
                             .filter(line -> line.contains("\"flowerId\":\"" + flower.getId() + "\""))
                             .findFirst())
                     .orTimeout(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+            Set<Long> totals = ConcurrentHashMap.newKeySet();
             try {
                 // The server registers the subscriber asynchronously; harvest until the event shows up
                 long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS;
                 while (!harvestLine.isDone() && System.currentTimeMillis() < deadline) {
                     flower.setFill(0.5);
-                    harvest(playerId);
+                    totals.add(harvest(playerId));
                     Thread.sleep(100);
                 }
 
-                assertThat(harvestLine.get()).hasValueSatisfying(line -> assertThat(line).contains("\"fill\":0"));
+                // Several harvests may run before the subscriber is registered; the event must carry the total
+                // of one of their responses
+                assertThat(harvestLine.get()).hasValueSatisfying(line -> assertThat(line)
+                        .contains("\"fill\":0")
+                        .contains("\"beeId\":\"" + playerId + "\""));
+                long eventHoney = Long.parseLong(harvestLine.get().orElseThrow().replaceAll(".*\"honey\":(\\d+).*", "$1"));
+                assertThat(eventHoney).isPositive().isIn(totals);
             } finally {
                 response.cancel(true);
                 if (response.isDone() && !response.isCompletedExceptionally())
@@ -128,10 +137,11 @@ class EventStreamTest {
                 .then().statusCode(200);
     }
 
-    private void harvest(String playerId) {
-        given()
+    private long harvest(String playerId) {
+        return given()
                 .contentType(ContentType.JSON)
                 .when().post("/api/player/{id}/harvest", playerId)
-                .then().statusCode(200);
+                .then().statusCode(200)
+                .extract().jsonPath().getLong("total");
     }
 }
