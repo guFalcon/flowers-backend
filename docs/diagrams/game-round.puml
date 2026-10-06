@@ -39,9 +39,12 @@ alt bee arrived (±500 ms) on a flower centre with fill > 0.1
   S -->> B : SSE harvest { flowerId, fill: 0 }
   S --> A : { flowerId, gained > 0, total }
   A -> A : slurp, show total
-else in flight, off every flower or fill <= 0.1
-  S --> A : { flowerId | null, gained: 0, total }
+else on a flower, but nothing gained (fill <= 0.1 or still in flight)
+  S --> A : { flowerId, gained: 0, total }
   A -> A : bump
+else off every flower (bare meadow)
+  S --> A : { flowerId: null, gained: 0, total }
+  note right of A : no sound, no vibration
 end
 
 loop every 1 s
