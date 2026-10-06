@@ -1,5 +1,6 @@
 package info.unterrainer.htl.resources;
 
+import info.unterrainer.htl.dtos.HarvestResult;
 import info.unterrainer.htl.dtos.Level;
 import info.unterrainer.htl.services.EventBusService;
 import info.unterrainer.htl.services.LevelService;
@@ -10,6 +11,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Path("/api")
@@ -41,12 +43,15 @@ public class GameResource {
     }
 
     @POST
-    @Path("/harvest/{id}")
-    public Response harvest(@PathParam("id") String flowerId) {
-        double honey = service.harvest(flowerId);
-        if (honey > 0)
-            bus.publish(Map.of("type", "harvest", "flowerId", flowerId, "fill", 0));
-        return Response.ok(Map.of("flowerId", flowerId, "honey", honey)).build();
+    @Path("/player/{id}/harvest")
+    public Response harvest(@PathParam("id") String playerId) {
+        Optional<HarvestResult> result = service.harvest(playerId);
+        if (result.isEmpty())
+            return Response.status(Response.Status.NOT_FOUND).build();
+        HarvestResult harvest = result.get();
+        if (harvest.gained() > 0)
+            bus.publish(Map.of("type", "harvest", "flowerId", harvest.flowerId(), "fill", 0));
+        return Response.ok(harvest).build();
     }
 
     @GET
@@ -57,6 +62,7 @@ public class GameResource {
         return bus.eventStream();
     }
 
+    // Admin endpoints are guarded by AdminTokenFilter
     @POST
     @Path("/admin/restart")
     public Response restartLevel() {

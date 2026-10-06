@@ -66,6 +66,20 @@ class GameResourceLevelTest {
     }
 
     @Test
+    void newBeeStandsStillWithoutHoney() {
+        String playerId = newPlayerId();
+
+        JsonPath level = join(playerId);
+
+        String bee = beePath(playerId);
+        assertThat(level.getLong(bee + ".honey")).isZero();
+        assertThat(level.getDouble(bee + ".targetX")).isEqualTo(level.getDouble(bee + ".x"));
+        assertThat(level.getDouble(bee + ".targetY")).isEqualTo(level.getDouble(bee + ".y"));
+        // Flight bookkeeping stays internal
+        assertThat(level.getMap(bee)).doesNotContainKeys("fromX", "fromY", "flightStart", "flightEnd");
+    }
+
+    @Test
     void rejoiningPlayerKeepsExactlyOneBeeWithSameColour() {
         String playerId = newPlayerId();
         String colour = join(playerId).getString(beePath(playerId) + ".color");
@@ -152,6 +166,7 @@ class GameResourceLevelTest {
 
         JsonPath body = given()
                 .contentType(ContentType.JSON)
+                .header("X-Admin-Token", "test-admin-token")
                 .when().post("/api/admin/restart")
                 .then().statusCode(200)
                 .extract().jsonPath();

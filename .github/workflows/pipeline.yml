@@ -91,3 +91,4 @@ jobs:
       DATA_DIR: ${{ secrets.DATA_DIR }}
       DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
       DOCKER_IMAGE_NAME: ${{ secrets.DOCKER_IMAGE_NAME }}
+      EXTRA_ENV: FLOWERS_ADMIN_TOKEN=${{ secrets.FLOWERS_ADMIN_TOKEN }}

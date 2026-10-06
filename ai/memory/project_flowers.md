@@ -11,8 +11,11 @@ clients via SSE; an admin can restart the level (QR code panel for joining).
 
 - **Backend** `~/source/htl/java/flowers-backend` (`guFalcon/flowers-backend`, `main`): Quarkus
   3.26, Java 21, in-memory state, port 8084. Endpoints in `GameResource`: `GET /api/level/{playerId}`,
-  `POST /api/player/{id}/target`, `POST /api/harvest/{flowerId}`, `GET /api/events` (SSE),
-  `POST /api/admin/restart`. CORS origins in `application.properties`.
+  `POST /api/player/{id}/target`, `POST /api/player/{id}/harvest`, `GET /api/events` (SSE),
+  `POST /api/admin/restart` (header `X-Admin-Token` = env `FLOWERS_ADMIN_TOKEN`, dev token
+  `dev-admin-token`; live token in `ai/secrets/flowers-admin-token`, admin view
+  `?admin=<token>`). Server simulates flights and owns each bee's honey. CORS origins in
+  `application.properties`.
 - **Frontend** `~/source/htl/js/flowers-frontend` (`guFalcon/flowers-frontend`, `main`): static
   HTML/CSS/JS as ES modules (entry `main.js`) + Express (`app.js`), Node 24. `SERVER` constant in `config.js` points at the live
   backend (a commented-out localhost line for dev).

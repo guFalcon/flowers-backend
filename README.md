@@ -5,7 +5,7 @@ steers a bee across a meadow and harvests honey from flowers. All players share 
 change is pushed to all browsers via Server-Sent Events (SSE).
 
 - Frontend: [guFalcon/flowers-frontend](https://github.com/guFalcon/flowers-frontend)
-- Live game: <https://flowers.htl.dev> (admin view: <https://flowers.htl.dev/?admin=true>)
+- Live game: <https://flowers.htl.dev> (admin view: `https://flowers.htl.dev/?admin=<admin token>`)
 - Live backend: <https://flowers-backend.htl.dev>
 
 Java 21, [Quarkus](https://quarkus.io/) (REST + Jackson, Mutiny, Scheduler), Lombok. All game state
@@ -19,32 +19,40 @@ lives in memory — there is no database, and a restart of the backend starts a 
   relative (`0..1`) so every screen size shows the same level.
 - Each flower has a nectar `fill` (`0..1`) that grows by its own `rate` **every second**, up to 1.
 - A **bee** is created for every player id the first time the player loads the level or sets a
-  target. It gets a random colour.
-- Players move their bee by setting a **target**; the browser animates the flight. Other players
-  see the new target with the next `level-update`.
-- **Harvesting** a flower with `fill > 0.1` yields `fill² × 100` honey and empties the flower;
-  with `fill ≤ 0.1` it yields 0. The honey total is kept by the browser, not by the server.
+  target. It gets a random colour and appears standing still at a random position with 0 honey.
+- Players move their bee by setting a **target**. The server simulates the flight: a straight line
+  from the bee's current position at constant speed, taking `max(5 s × distance, 0.2 s)` (distance in
+  relative coordinates) — the same duration the browser animates. Other players see the new target
+  with the next `level-update`.
+- **Harvesting** is requested by the player after the flight; the server decides. It succeeds if the
+  bee has arrived (the request may come up to 500 ms early) and a flower centre is within
+  `0.175 × size` of the bee (the drawn flower centre; horizontal distances converted with 9:16). The
+  closest such flower with `fill > 0.1` yields `round(fill² × 1000)` honey and is emptied; otherwise
+  the harvest yields 0. The server keeps every bee's honey, so it survives a page reload.
 - Every **10 seconds** bees whose player has not set a target for **60 seconds** are removed.
 - The whole level is broadcast **every 3 seconds** and additionally whenever a bee is added,
   moved or removed.
-- An **admin restart** generates new flowers; the bees stay.
+- An **admin restart** generates new flowers and resets every bee's honey to 0; the bees stay
+  where they are.
 
 ![One game round](docs/diagrams/game-round.svg)
 
 ## REST API
 
-All endpoints live under `/api`, send and receive JSON. There is no authentication.
+All endpoints live under `/api`, send and receive JSON. Players are not authenticated; admin
+endpoints (`/api/admin/*`) require the header `X-Admin-Token` (see [Admin token](#admin-token)).
 
 | Method | Path | Body | Response | Effect |
 |---|---|---|---|---|
 | `GET` | `/api/level/{playerId}` | – | `Level` with `yourBeeId` | Registers a bee for `playerId` if unknown, returns the current level |
 | `POST` | `/api/player/{playerId}/target` | `{"x": 0.5, "y": 0.5}` | `{"status": "ok"}` | Sets the bee's target (registers the bee if unknown), broadcasts `level-update` |
-| `POST` | `/api/harvest/{flowerId}` | – | `{"flowerId": "flower-0", "honey": 100.0}` | Harvests the flower, see [Game mechanics](#game-mechanics) |
-| `POST` | `/api/admin/restart` | – | `{"status": "ok", "message": "Level restarted"}` | New flowers, broadcasts `levelRestarted` |
+| `POST` | `/api/player/{playerId}/harvest` | – | `{"flowerId": "flower-0", "gained": 250, "total": 650}` | Harvests the flower under the bee, see [Game mechanics](#game-mechanics); broadcasts `harvest` if `gained > 0`; `404` for an unknown bee |
+| `POST` | `/api/admin/restart` | – (header `X-Admin-Token`) | `{"status": "ok", "message": "Level restarted"}` | New flowers, honey reset, broadcasts `levelRestarted`; `403` without a valid token |
 | `GET` | `/api/events` | – | SSE stream (`text/event-stream`) | See [SSE events](#sse-events) |
 
-`playerId` is any string; the frontend uses a UUID kept in `localStorage`. An unknown `flowerId`
-yields `honey: 0`.
+`playerId` is any string; the frontend uses a UUID kept in `localStorage`. A harvest that yields
+nothing answers `gained: 0` with the id of the flower under the bee, or `flowerId: null` if there is
+none; `total` is always the bee's honey after the request.
 
 `Level`:
 
@@ -62,7 +70,7 @@ yields `honey: 0`.
   "bees": [
     {
       "id": "3f0c…", "x": 0.41, "y": 0.77, "targetX": 0.5, "targetY": 0.5,
-      "color": "#E6A4D9", "lastActive": 1791273600000
+      "color": "#E6A4D9", "lastActive": 1791273600000, "honey": 650
     }
   ],
   "yourBeeId": "3f0c…"
@@ -70,8 +78,9 @@ yields `honey: 0`.
 ```
 
 `x`, `y`, `size`, `targetX`, `targetY` are relative to the play area (`size` relative to its
-height); `rate` is the fill increase per second. `x`/`y` of a bee are its spawn position — the
-server only tracks targets. `yourBeeId` is set only in the response of `GET /api/level/{playerId}`.
+height); `rate` is the fill increase per second. `x`/`y` of a bee are its current position on its
+flight when the level was built, `honey` its score. `yourBeeId` is set only in the response of
+`GET /api/level/{playerId}`.
 
 ## SSE events
 
@@ -80,17 +89,30 @@ field tells the events apart:
 
 | `type` | Fields | When |
 |---|---|---|
-| `level-update` | `level`: the `Level` (without `yourBeeId`) **as a JSON string** — parse it a second time | Every 3 s, and when a bee is added, moved or removed |
-| `harvest` | `flowerId` | Currently sent when a harvest yields **no** honey (also for unknown flower ids) — see `ai/open-proposals.md` |
+| `level-update` | `level`: the `Level` (without a meaningful `yourBeeId`) as a JSON object | Every 3 s, and when a bee is added, moved or removed |
+| `harvest` | `flowerId`, `fill` (0) | After a harvest that yielded honey |
 | `levelRestarted` | – | After `POST /api/admin/restart`; clients reload the level |
 
 ```text
 data:{"type":"levelRestarted"}
-data:{"type":"harvest","flowerId":"flower-3"}
-data:{"type":"level-update","level":"{\"aspect\":\"9:16\",\"flowers\":[…],\"bees\":[…]}"}
+data:{"type":"harvest","flowerId":"flower-3","fill":0}
+data:{"type":"level-update","level":{"aspect":"9:16","flowers":[…],"bees":[…],"yourBeeId":null}}
 ```
 
 Watch the stream by hand with `curl -N http://localhost:8084/api/events`.
+
+## Admin token
+
+`/api/admin/*` is guarded by `AdminTokenFilter`: a request is executed only if its `X-Admin-Token`
+header equals the token from the environment variable `FLOWERS_ADMIN_TOKEN` (config property
+`flowers.admin-token`); otherwise it is answered with `403`. Without a configured token every admin
+request is refused. In `quarkus:dev` the token is `dev-admin-token`, in tests `test-admin-token`.
+
+The frontend's admin view is opened with `?admin=<token>` and sends the token along. In production
+the token is the GitHub secret `FLOWERS_ADMIN_TOKEN` of this repo; the pipeline hands it to the
+shared `deploy-workflow` as `EXTRA_ENV`, which appends it to `deploy/.env`, and
+`deploy/docker-compose.yml` passes it into the container. To rotate it, change the secret and
+redeploy.
 
 ## Local development
 
@@ -111,11 +133,13 @@ Configuration is in `src/main/resources/application.properties`:
 |---|---|---|
 | `quarkus.http.port` | `8084` | HTTP port |
 | `quarkus.http.cors.origins` | `https://flowers.htl.dev, http://localhost:8080, http://localhost:8081` | Browser origins allowed to call the API — add yours when the frontend runs elsewhere |
+| `flowers.admin-token` | `${FLOWERS_ADMIN_TOKEN:}` (`%dev`: `dev-admin-token`) | Admin token, see [Admin token](#admin-token) |
 
 To play against the local backend, run the frontend on port 8081 and point its `SERVER` constant
 at `http://localhost:8084` (see the frontend README).
 
-There are no automated tests yet (`src/test` does not exist).
+Tests (JUnit 5, AssertJ, `@QuarkusTest`): `./mvnw test`. `http/game.http` exercises the REST API
+against `quarkus:dev`.
 
 ## Build and deployment
 
@@ -131,8 +155,8 @@ Every push to `main` runs `.github/workflows/pipeline.yml`:
 2. `mvn package -DskipTests` on a self-hosted runner (tests are not run in CI),
 3. build the image from `src/main/docker/Dockerfile.jvm` and push it to Docker Hub as
    `gufalcon/flowers-backend:latest`,
-4. deploy with the shared `deploy-workflow`, which runs `deploy/up.sh` (`docker-compose pull && up`)
-   on the server. `deploy/docker-compose.yml` puts the container into the external Traefik network
+4. deploy with the shared `deploy-workflow`, which writes `deploy/.env` (including
+   `FLOWERS_ADMIN_TOKEN`) and runs `deploy/up.sh` (`docker-compose pull && up`) on the server. `deploy/docker-compose.yml` puts the container into the external Traefik network
    `proxy_default` and routes `flowers-backend.htl.dev` to port 8084.
 
 ## Repository layout
@@ -140,9 +164,10 @@ Every push to `main` runs `.github/workflows/pipeline.yml`:
 | Path | Content |
 |---|---|
 | `src/main/java/info/unterrainer/htl/resources/GameResource.java` | REST and SSE endpoints |
-| `src/main/java/info/unterrainer/htl/services/LevelService.java` | Level, bees, harvesting, scheduled fill / cleanup / broadcast |
+| `src/main/java/info/unterrainer/htl/resources/AdminTokenFilter.java` | Admin token check for `/api/admin/*` |
+| `src/main/java/info/unterrainer/htl/services/LevelService.java` | Level, bees, flight simulation, harvesting, scheduled fill / cleanup / broadcast |
 | `src/main/java/info/unterrainer/htl/services/EventBusService.java` | Fan-out of events to all SSE clients |
-| `src/main/java/info/unterrainer/htl/dtos/` | `Level`, `Flower`, `Bee` |
+| `src/main/java/info/unterrainer/htl/dtos/` | `Level`, `Flower`, `Bee`, `HarvestResult` |
 | `src/main/java/info/unterrainer/htl/ColorUtils.java` | Flower and bee colours |
 | `src/main/docker/` | Dockerfiles (`Dockerfile.jvm` is the one CI uses) |
 | `deploy/` | docker compose file and `up.sh` used by the deploy workflow |

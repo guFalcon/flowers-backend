@@ -24,21 +24,24 @@ S --> B : Level { ..., yourBeeId }
 == Fly ==
 A -> A : click → animate own bee\n(duration from distance)
 A -> S : POST /api/player/{playerIdA}/target {x, y}
+note right of S : flight from the bee's current position,\narrival = now + max(5 s × distance, 0.2 s)
 S --> A : { status: "ok" }
 S -->> A : SSE level-update
 S -->> B : SSE level-update
 B -> B : animate bee A to its target
 
 == Harvest ==
-A -> A : flight time elapsed,\ntarget is on a flower centre
-A -> S : POST /api/harvest/{flowerId}
-alt fill > 0.1
-  S --> A : { flowerId, honey > 0 }
-  note right of S : flower fill set to 0;\nothers see it with the next level-update
-else fill <= 0.1
-  S -->> A : SSE harvest { flowerId }
-  S -->> B : SSE harvest { flowerId }
-  S --> A : { flowerId, honey: 0 }
+A -> A : flight time elapsed\n(no newer flight)
+A -> S : POST /api/player/{playerIdA}/harvest
+alt bee arrived (±500 ms) on a flower centre with fill > 0.1
+  note right of S : flower fill set to 0,\nhoney of bee A += round(fill² × 1000)
+  S -->> A : SSE harvest { flowerId, fill: 0 }
+  S -->> B : SSE harvest { flowerId, fill: 0 }
+  S --> A : { flowerId, gained > 0, total }
+  A -> A : slurp, show total
+else in flight, off every flower or fill <= 0.1
+  S --> A : { flowerId | null, gained: 0, total }
+  A -> A : bump
 end
 
 loop every 1 s
@@ -53,7 +56,8 @@ loop every 10 s
 end
 
 == Restart (admin) ==
-A -> S : POST /api/admin/restart
+A -> S : POST /api/admin/restart\nX-Admin-Token: <token>
+note right of S : 403 without a valid token;\notherwise new flowers, honey reset to 0
 S -->> A : SSE levelRestarted
 S -->> B : SSE levelRestarted
 S --> A : { status: "ok", message }

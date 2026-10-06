@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import info.unterrainer.htl.dtos.Flower;
 import info.unterrainer.htl.services.LevelService;
+import info.unterrainer.htl.services.LevelServiceTestSupport;
 import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
@@ -39,6 +40,8 @@ class EventStreamTest {
     void harvestReachesHttpSubscriber() throws Exception {
         levelService.restartLevel();
         Flower flower = levelService.getLevel().getFlowers().getFirst();
+        String playerId = UUID.randomUUID().toString();
+        LevelServiceTestSupport.placeArrived(levelService, playerId, flower.getX(), flower.getY());
 
         HttpRequest request = HttpRequest.newBuilder(eventsUri)
                 .header("Accept", "text/event-stream")
@@ -58,7 +61,7 @@ class EventStreamTest {
                 long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS;
                 while (!harvestLine.isDone() && System.currentTimeMillis() < deadline) {
                     flower.setFill(0.5);
-                    harvest(flower.getId());
+                    harvest(playerId);
                     Thread.sleep(100);
                 }
 
@@ -125,10 +128,10 @@ class EventStreamTest {
                 .then().statusCode(200);
     }
 
-    private void harvest(String flowerId) {
+    private void harvest(String playerId) {
         given()
                 .contentType(ContentType.JSON)
-                .when().post("/api/harvest/{id}", flowerId)
+                .when().post("/api/player/{id}/harvest", playerId)
                 .then().statusCode(200);
     }
 }

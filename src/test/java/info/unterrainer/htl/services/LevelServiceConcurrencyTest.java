@@ -91,14 +91,17 @@ class LevelServiceConcurrencyTest {
     void harvestAndGrowthDoNotInterleave() throws Exception {
         levelService.restartLevel();
         Flower flower = levelService.getLevel().getFlowers().getFirst();
+        String playerId = "concurrency-" + UUID.randomUUID();
+        // Arrived on the flower's centre long ago, so every harvest below is judged by fill alone
+        levelService.setTarget(playerId, flower.getX(), flower.getY(), System.currentTimeMillis() - 10_000);
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
             for (int i = 0; i < 2_000; i++) {
                 flower.setFill(0.5);
                 CountDownLatch start = new CountDownLatch(1);
-                Future<Double> harvest = executor.submit(() -> {
+                Future<Long> harvest = executor.submit(() -> {
                     start.await();
-                    return levelService.harvest(flower.getId());
+                    return levelService.harvest(playerId).orElseThrow().gained();
                 });
                 Future<?> growth = executor.submit(() -> {
                     start.await();
@@ -122,7 +125,7 @@ class LevelServiceConcurrencyTest {
         switch (round % 5) {
             case 0 -> levelService.registerBee(player);
             case 1 -> levelService.setTarget(player, random.nextDouble(), random.nextDouble());
-            case 2 -> levelService.harvest("flower-" + random.nextInt(6));
+            case 2 -> levelService.harvest(player);
             // Serialise like Jackson does in GameResource, outside the service
             case 3 -> mapper.writeValueAsString(levelService.getLevelForPlayer(player));
             default -> {

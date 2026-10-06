@@ -3,16 +3,12 @@
 Drafted-but-not-yet-proposed work for backend and frontend. Delete an entry as soon as it becomes
 an `/opsx:propose` change — never tick it off.
 
-## Server trusts the client
-Any client can harvest any flower from anywhere (no bee-position check), `POST /api/admin/restart` is
-unprotected (frontend admin mode is just `?admin=true`), and the honey score lives only in the
-browser (lost on reload). Decide what should be authoritative on the server — ties into the
-leaderboard entry.
-
 ## Live leaderboard for all players
-Requested by Gerald 2026-10-06: show every player a current leaderboard. Needs server-side honey per
-bee (see "Server trusts the client"), a leaderboard in the level/SSE payload or its own event, and
-a frontend panel. Open: player names/colours, reset on level restart. Contract change → both repos.
+Requested by Gerald 2026-10-06: show every player a current leaderboard. The server already keeps
+each bee's `honey` and sends it with every bee in the level (server-authoritative-game-state), and a
+level restart resets it to 0. Still needed: a frontend panel (from the level's bees, or a dedicated
+event if that is too coarse). Open: player names (bees only have an id and a colour). Contract
+change → both repos.
 
 ## Clouds that slow bees down
 Requested by Gerald 2026-10-06: clouds on the meadow that slow bees flying through them, so players

@@ -4,27 +4,36 @@
 # the harvest requests (or run the events request below on its own).
 # level-update events carry the level as a JSON object:
 #   {"type":"level-update","level":{"aspect":…,"flowers":[…],"bees":[…],"yourBeeId":null}}
+# Every bee in a level: {"id","x","y","targetX","targetY","color","lastActive","honey"}, where x/y is the
+# bee's current server-side position (it moves along its flight) and honey its score.
+# Admin endpoints need the header X-Admin-Token; quarkus:dev uses the token `dev-admin-token`.
 
 @host = http://localhost:8084
 @playerId = http-client-player
-@flowerId = flower-1
 
-### Get the level for a player (registers the player's bee)
+### Get the level for a player (registers the player's bee, standing still with honey 0 when new)
 GET {{host}}/api/level/{{playerId}}
 
 > {%
+    const bee = response.body.bees.find(b => b.id === "http-client-player");
+    // Fly to the corner farthest from the bee's current position: at least 0.7 units → 3.5 s flight
+    client.global.set("farX", bee && bee.x < 0.5 ? "1.0" : "0.0");
+    client.global.set("farY", bee && bee.y < 0.5 ? "1.0" : "0.0");
     client.test("level contains flowers and your bee", () => {
         client.assert(response.status === 200, "status " + response.status);
         client.assert(response.body.flowers.length > 0, "no flowers");
-        client.assert(!!response.body.yourBeeId, "yourBeeId " + response.body.yourBeeId);
+        client.assert(response.body.yourBeeId === "http-client-player", "yourBeeId " + response.body.yourBeeId);
+        client.assert(!!bee, "own bee missing");
+        client.assert(typeof bee.honey === "number", "honey " + bee.honey);
+        client.assert(bee.fromX === undefined && bee.flightEnd === undefined, "flight fields leak: " + JSON.stringify(bee));
     });
 %}
 
-### Set the bee's target: publishes a level-update whose level contains the bee with this target
+### Set the bee's target: starts a flight on the server and publishes a level-update
 POST {{host}}/api/player/{{playerId}}/target
 Content-Type: application/json
 
-{"x": 0.25, "y": 0.75}
+{"x": {{farX}}, "y": {{farY}}}
 
 > {%
     client.test("target is accepted", () => {
@@ -33,34 +42,55 @@ Content-Type: application/json
     });
 %}
 
-### Harvest an existing flower: yields honey and publishes {"type":"harvest","flowerId":…,"fill":0}
-POST {{host}}/api/harvest/{{flowerId}}
+### Harvest while the bee is still in flight: {"flowerId":…|null,"gained":0,"total":<honey>}, no event
+# After arriving on a flower with fill > 0.1, the same request yields gained = round(fill² × 1000),
+# empties the flower and publishes {"type":"harvest","flowerId":…,"fill":0}.
+POST {{host}}/api/player/{{playerId}}/harvest
 
 > {%
-    client.test("first harvest yields honey", () => {
+    client.test("harvest in flight yields nothing", () => {
         client.assert(response.status === 200, "status " + response.status);
-        client.assert(!!response.body.flowerId, "flowerId " + response.body.flowerId);
-        client.assert(response.body.honey > 0, "honey " + response.body.honey);
+        client.assert(response.body.gained === 0, "gained " + response.body.gained);
+        client.assert(typeof response.body.total === "number", "total " + response.body.total);
+        client.assert("flowerId" in response.body, "flowerId missing");
     });
 %}
 
-### Harvest the same flower again: it is empty, yields 0 and publishes no event
-POST {{host}}/api/harvest/{{flowerId}}
+### Harvest for an unknown player: 404, no bee is created
+POST {{host}}/api/player/no-such-player/harvest
 
 > {%
-    client.test("repeated harvest yields nothing", () => {
-        client.assert(response.status === 200, "status " + response.status);
-        client.assert(response.body.honey === 0, "honey " + response.body.honey);
+    client.test("unknown player is not found", () => {
+        client.assert(response.status === 404, "status " + response.status);
     });
 %}
 
-### Harvest an unknown flower: yields 0 and publishes no event
-POST {{host}}/api/harvest/no-such-flower
+### The old harvest endpoint is gone
+POST {{host}}/api/harvest/flower-1
 
 > {%
-    client.test("unknown flower yields nothing", () => {
+    client.test("old harvest endpoint answers 404", () => {
+        client.assert(response.status === 404, "status " + response.status);
+    });
+%}
+
+### Restart without admin token: refused
+POST {{host}}/api/admin/restart
+
+> {%
+    client.test("restart without token is forbidden", () => {
+        client.assert(response.status === 403, "status " + response.status);
+    });
+%}
+
+### Restart with the dev admin token: new flowers, honey of every bee reset to 0, levelRestarted event
+POST {{host}}/api/admin/restart
+X-Admin-Token: dev-admin-token
+
+> {%
+    client.test("restart with token succeeds", () => {
         client.assert(response.status === 200, "status " + response.status);
-        client.assert(response.body.honey === 0, "honey " + response.body.honey);
+        client.assert(response.body.status === "ok", "status " + response.body.status);
     });
 %}
 

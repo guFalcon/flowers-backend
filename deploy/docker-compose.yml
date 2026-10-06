@@ -5,6 +5,8 @@ services:
     container_name: flowers-backend
     environment:
       - LANGUAGE=de_AT:de
+      # Admin token for /api/admin/*; written into deploy/.env by the deploy workflow (EXTRA_ENV)
+      - FLOWERS_ADMIN_TOKEN=${FLOWERS_ADMIN_TOKEN}
     labels:
       - traefik.enable=true
       - traefik.http.routers.flowers-backend.entrypoints=web,websecure,web-ext,websecure-ext
