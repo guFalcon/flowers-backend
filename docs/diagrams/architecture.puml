@@ -1,0 +1,40 @@
+@startuml architecture
+!theme plain
+skinparam componentStyle rectangle
+skinparam defaultFontName sans-serif
+title flowers — component overview
+
+actor "Player / Admin" as user
+
+node "Browser" {
+  component "index.html\n(game logic, rendering)" as page
+  component "bee.js\nBee animation" as bee
+  component "sse-connection.js\nSSE + reconnect" as sse
+  component "audio-system.js\nsounds" as audio
+  page --> bee
+  page --> sse
+  page --> audio
+}
+
+cloud "Traefik (production)" as traefik
+
+node "flowers-frontend\n(Node / Express, :8081 dev / :8080 container)" as fe {
+  component "app.js\nstatic file server" as express
+}
+
+node "flowers-backend\n(Quarkus, :8084)" as be {
+  component "GameResource\n/api/*" as res
+  component "LevelService\nin-memory level + bees\nschedulers 1 s / 3 s / 10 s" as lvl
+  component "EventBusService\nSSE fan-out" as bus
+  res --> lvl
+  res --> bus
+  lvl --> bus
+}
+
+user --> page : click / tap
+page ..> traefik : GET static files
+traefik ..> express : flowers.htl.dev
+page --> traefik : REST (fetch)
+sse <-- traefik : SSE /api/events
+traefik --> res : flowers-backend.htl.dev
+@enduml

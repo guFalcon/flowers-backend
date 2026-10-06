@@ -1,0 +1,62 @@
+@startuml game-round
+!theme plain
+skinparam defaultFontName sans-serif
+skinparam sequenceMessageAlign left
+title flowers — one game round (two players)
+
+participant "Browser A" as A
+participant "Browser B" as B
+participant "flowers-backend" as S
+
+== Join ==
+A -> S : GET /api/events (SSE, stays open)
+B -> S : GET /api/events (SSE, stays open)
+A -> S : GET /api/level/{playerIdA}
+note right of S : registers bee A if unknown
+S -->> A : SSE level-update (all bees)
+S -->> B : SSE level-update
+S --> A : Level { flowers, bees, yourBeeId }
+B -> S : GET /api/level/{playerIdB}
+S -->> A : SSE level-update
+S -->> B : SSE level-update
+S --> B : Level { ..., yourBeeId }
+
+== Fly ==
+A -> A : click → animate own bee\n(duration from distance)
+A -> S : POST /api/player/{playerIdA}/target {x, y}
+S --> A : { status: "ok" }
+S -->> A : SSE level-update
+S -->> B : SSE level-update
+B -> B : animate bee A to its target
+
+== Harvest ==
+A -> A : flight time elapsed,\ntarget is on a flower centre
+A -> S : POST /api/harvest/{flowerId}
+alt fill > 0.1
+  S --> A : { flowerId, honey > 0 }
+  note right of S : flower fill set to 0;\nothers see it with the next level-update
+else fill <= 0.1
+  S -->> A : SSE harvest { flowerId }
+  S -->> B : SSE harvest { flowerId }
+  S --> A : { flowerId, honey: 0 }
+end
+
+loop every 1 s
+  S -> S : flowers refill by their rate
+end
+loop every 3 s
+  S -->> A : SSE level-update
+  S -->> B : SSE level-update
+end
+loop every 10 s
+  S -> S : remove bees inactive > 60 s
+end
+
+== Restart (admin) ==
+A -> S : POST /api/admin/restart
+S -->> A : SSE levelRestarted
+S -->> B : SSE levelRestarted
+S --> A : { status: "ok", message }
+A -> S : GET /api/level/{playerIdA}
+B -> S : GET /api/level/{playerIdB}
+@enduml
