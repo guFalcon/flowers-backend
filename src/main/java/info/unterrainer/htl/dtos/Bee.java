@@ -15,6 +15,7 @@ public class Bee {
     private double targetY;
     private String color;
     private long lastActive;
+    // Harvested honey in microlitres
     private long honey;
     private String name;
 

@@ -1,11 +1,4 @@
-# flower-harvest Specification
-
-## Purpose
-
-Covers how a player harvests honey from a flower via the REST API, and how every connected client
-learns over SSE that the flower has been emptied.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Harvesting at the bee's position yields honey
 `POST /api/player/{playerId}/harvest` (no body) SHALL harvest the flower under that player's bee,

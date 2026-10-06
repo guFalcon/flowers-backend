@@ -46,9 +46,30 @@ class LevelServiceHarvestTest {
 
         HarvestResult result = levelService.harvest(playerId, T0).orElseThrow();
 
-        assertThat(result).isEqualTo(new HarvestResult(flower.getId(), 250, 350));
+        assertThat(result).isEqualTo(new HarvestResult(flower.getId(), 13, 113));
         assertThat(flower.getFill()).isZero();
-        assertThat(bee(playerId).getHoney()).isEqualTo(350);
+        assertThat(bee(playerId).getHoney()).isEqualTo(113);
+    }
+
+    @Test
+    void aFullFlowerYieldsFiftyMicrolitres() {
+        flower.setFill(1.0);
+        String playerId = arrivedAt(0.5, 0.5);
+
+        HarvestResult result = levelService.harvest(playerId, T0).orElseThrow();
+
+        assertThat(result).isEqualTo(new HarvestResult(flower.getId(), 50, 50));
+    }
+
+    @Test
+    void theSmallestHarvestableFillYieldsOneMicrolitre() {
+        flower.setFill(0.101);
+        String playerId = arrivedAt(0.5, 0.5);
+
+        HarvestResult result = levelService.harvest(playerId, T0).orElseThrow();
+
+        assertThat(result).isEqualTo(new HarvestResult(flower.getId(), 1, 1));
+        assertThat(flower.getFill()).isZero();
     }
 
     @Test
@@ -71,7 +92,7 @@ class LevelServiceHarvestTest {
 
         HarvestResult result = levelService.harvest(playerId, T0 + 1_800).orElseThrow();
 
-        assertThat(result).isEqualTo(new HarvestResult(flower.getId(), 250, 250));
+        assertThat(result).isEqualTo(new HarvestResult(flower.getId(), 13, 13));
         assertThat(flower.getFill()).isZero();
     }
 
@@ -105,7 +126,7 @@ class LevelServiceHarvestTest {
         HarvestResult result = levelService.harvest(playerId, T0).orElseThrow();
 
         assertThat(result.flowerId()).isEqualTo(flower.getId());
-        assertThat(result.gained()).isEqualTo(250);
+        assertThat(result.gained()).isEqualTo(13);
     }
 
     @Test
@@ -127,7 +148,7 @@ class LevelServiceHarvestTest {
         HarvestResult result = levelService.harvest(playerId, T0).orElseThrow();
 
         assertThat(result.flowerId()).isEqualTo(otherFlower.getId());
-        assertThat(result.gained()).isEqualTo(640);
+        assertThat(result.gained()).isEqualTo(32);
         assertThat(flower.getFill()).isEqualTo(0.5);
         assertThat(otherFlower.getFill()).isZero();
     }

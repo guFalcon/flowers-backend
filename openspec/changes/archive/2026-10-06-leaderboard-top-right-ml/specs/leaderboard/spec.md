@@ -1,39 +1,4 @@
-# leaderboard Specification
-
-## Purpose
-
-Gives every bee a friendly, child-friendly German name and shows all players a live leaderboard of
-the current round's honey, so the bees on the meadow compete with each other.
-
-## Requirements
-
-### Requirement: New bees get a random child-friendly name
-When the backend creates a bee, it SHALL assign it a `name` picked at random from a fixed list of at
-least 40 child-friendly German bee names in the spirit of "Die Biene Maja" (for example `Maja`,
-`Willi`, `Flip`, `Summsi`, `Brummel`). The picked name SHALL NOT equal the name of any other current
-bee as long as the list contains a name not in use. If every name in the list is in use, the backend
-SHALL pick a random name from the list and append a space and the smallest number from 2 upwards that
-makes it unique among the current bees (e.g. `Maja 2`).
-
-A bee SHALL keep its name for as long as it exists, including across level restarts. A bee that was
-removed for inactivity and is created again SHALL get a newly picked name. There SHALL be no way for
-a client to set or change a name.
-
-#### Scenario: New bee has a name from the list
-- **WHEN** a client calls `GET /api/level/p1` and no bee `p1` exists
-- **THEN** bee `p1` in the response has a non-empty `name` taken from the name list
-
-#### Scenario: Names are unique
-- **WHEN** 10 different players join one after another
-- **THEN** all 10 bees have different names
-
-#### Scenario: List exhausted
-- **WHEN** every name of the list is already used by a current bee and another player joins
-- **THEN** the new bee's name is a list name followed by a space and a number, and no other current bee has that name
-
-#### Scenario: Name survives rejoin and restart
-- **WHEN** bee `p1` is named `Willi`, the client calls `GET /api/level/p1` again and the admin restarts the level
-- **THEN** bee `p1` is still named `Willi`
+## MODIFIED Requirements
 
 ### Requirement: Clients show a live leaderboard
 The frontend SHALL show a leaderboard panel in the top-right corner of the page, built from the bees
@@ -84,3 +49,10 @@ underneath, so steering and harvesting work on the whole meadow, including flowe
 #### Scenario: Flower under the panel stays harvestable
 - **WHEN** a flower lies where the panel overlaps the play area and the player clicks that flower
 - **THEN** the flower is drawn over the panel, the bee flies to the clicked spot and harvests the flower on arrival
+
+## REMOVED Requirements
+
+### Requirement: Clients show the player's own name
+**Reason**: The leaderboard already shows the own bee's name in its highlighted row; the separate
+name display in the top-right corner is removed to make room for the leaderboard.
+**Migration**: Read the own name from the highlighted leaderboard row.

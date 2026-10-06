@@ -43,7 +43,8 @@ public class LevelService {
     // Play-area width per height (aspect 9:16), converts horizontal distances to heights
     private static final double WIDTH_PER_HEIGHT = 9.0 / 16.0;
     private static final double MIN_HARVEST_FILL = 0.1;
-    private static final double HONEY_PER_FULL_FLOWER = 1_000;
+    // Honey is counted in microlitres; a full flower yields about one crop load of a honey bee
+    private static final double HONEY_PER_FULL_FLOWER = 50;
 
     private Level currentLevel;
     private final Map<String, Bee> bees = new HashMap<>();

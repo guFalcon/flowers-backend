@@ -62,13 +62,13 @@ class GameResourceHarvestTest {
 
         JsonPath body = harvest(playerId).then().statusCode(200).extract().jsonPath();
 
-        assertThat(body.getMap("")).isEqualTo(Map.of("flowerId", flower.getId(), "gained", 250, "total", 250));
+        assertThat(body.getMap("")).isEqualTo(Map.of("flowerId", flower.getId(), "gained", 13, "total", 13));
         assertThat(flower.getFill()).isZero();
         assertThat(harvestEvents()).containsExactly(
-                Map.of("type", "harvest", "flowerId", flower.getId(), "fill", 0, "beeId", playerId, "honey", 250L));
+                Map.of("type", "harvest", "flowerId", flower.getId(), "fill", 0, "beeId", playerId, "honey", 13L));
         JsonPath level = given().when().get("/api/level/{playerId}", playerId)
                 .then().statusCode(200).extract().jsonPath();
-        assertThat(level.getLong("bees.find { it.id == '" + playerId + "' }.honey")).isEqualTo(250);
+        assertThat(level.getLong("bees.find { it.id == '" + playerId + "' }.honey")).isEqualTo(13);
     }
 
     @Test

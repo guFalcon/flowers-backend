@@ -5,9 +5,10 @@
 # level-update events carry the level as a JSON object:
 #   {"type":"level-update","level":{"aspect":…,"flowers":[…],"bees":[…],"yourBeeId":null}}
 # Every bee in a level: {"id","x","y","targetX","targetY","color","lastActive","honey","name"}, where x/y
-# is the bee's current server-side position (it moves along its flight), honey its score and name a
-# random child-friendly name given by the server when the bee is created (kept for the bee's lifetime).
-# harvest events: {"type":"harvest","flowerId":…,"fill":0,"beeId":…,"honey":<the bee's new total>}
+# is the bee's current server-side position (it moves along its flight), honey its harvested honey in
+# integer microlitres (µl) and name a random child-friendly name given by the server when the bee is
+# created (kept for the bee's lifetime).
+# harvest events: {"type":"harvest","flowerId":…,"fill":0,"beeId":…,"honey":<the bee's new total in µl>}
 # Admin endpoints need the header X-Admin-Token; quarkus:dev uses the token `dev-admin-token`.
 
 @host = http://localhost:8084
@@ -45,9 +46,10 @@ Content-Type: application/json
     });
 %}
 
-### Harvest while the bee is still in flight: {"flowerId":…|null,"gained":0,"total":<honey>}, no event
-# After arriving on a flower with fill > 0.1, the same request yields gained = round(fill² × 1000),
-# empties the flower and publishes {"type":"harvest","flowerId":…,"fill":0,"beeId":…,"honey":<total>}.
+### Harvest while the bee is still in flight: {"flowerId":…|null,"gained":0,"total":<honey in µl>}, no event
+# After arriving on a flower with fill > 0.1, the same request yields gained = round(fill² × 50) µl
+# (a full flower yields 50 µl), empties the flower and publishes
+# {"type":"harvest","flowerId":…,"fill":0,"beeId":…,"honey":<total>}.
 POST {{host}}/api/player/{{playerId}}/harvest
 
 > {%

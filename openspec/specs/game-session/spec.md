@@ -185,16 +185,3 @@ already on screen SHALL keep flying to a changed target as before.
 #### Scenario: Reload during a flight
 - **WHEN** the player reloads the page while their bee is half-way to its target
 - **THEN** the bee appears at the current position from the level and flies on to its target
-
-### Requirement: Clients show the player's honey from the server
-The frontend SHALL show as the player's honey the `honey` of the player's own bee from the most
-recent level (from `GET /api/level/{playerId}` or `level-update`) or the `total` of the most recent
-harvest response, whichever arrived last. It SHALL NOT keep a separate client-side score.
-
-#### Scenario: Honey survives a reload
-- **WHEN** the player has 400 honey and reloads the page within the inactivity timeout
-- **THEN** the page shows 400 honey after loading
-
-#### Scenario: Restart resets the display
-- **WHEN** the admin restarts the level and the client reloads the level
-- **THEN** the page shows 0 honey
