@@ -30,5 +30,5 @@
 ## 5. Verification
 
 - [x] 5.1 Run backend (quarkus:dev, dev token) and frontend locally, drive two players headless with Playwright: spawn without flight, harvest only on arrival, honey per player in the level, reload keeps honey, admin restart with/without token, bump on empty grass; stop both servers and verify ports 8084/8081 are free
-- [ ] 5.2 After deployment: restart on the live backend without token → 403, with `?admin=<token>` → works; verify with `curl` and one headless run against `https://flowers.htl.dev`
+- [x] 5.2 After deployment: restart on the live backend without token → 403, with `?admin=<token>` → works; verify with `curl` and one headless run against `https://flowers.htl.dev`
 - [x] 5.3 Run `openspec validate server-authoritative-game-state --strict` and verify it reports the change as valid

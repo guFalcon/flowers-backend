@@ -9,7 +9,7 @@ metadata:
 otherwise — mark each line verified once it has run.
 
 - **Backend tests (verified 2026-10-06):** `JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./mvnw test`
-  (15 tests, ~10 s); single class `-Dtest=GameResourceHarvestTest`, single method
+  (47 tests, ~15 s); single class `-Dtest=GameResourceHarvestTest`, single method
   `-Dtest='LevelServiceConcurrencyTest#harvestAndGrowthDoNotInterleave'`.
   `src/test/resources/application.properties` disables the scheduler (call `fillFlowers`/
   `cleanupInactiveBees`/`publishLevel` directly) and sets `quarkus.http.test-port=0` (random port, no
