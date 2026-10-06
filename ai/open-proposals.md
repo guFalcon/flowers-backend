@@ -40,12 +40,6 @@ Client grows `fill` by `rate` every 2 s, server every 1 s — the two drift unti
 copied twice (`COPY *.js`, `*.css`); `nodemon` and unused `express-session` are runtime dependencies;
 image uses Node 22 while `.nvmrc` says 20; `EXPOSE 8080`; compose service is named `test`.
 
-## Restructure the frontend code
-Requested by Gerald 2026-10-06 for readability: `index.html` holds ~400 lines of inline script
-(config, layout, flower rendering, bee rendering, SSE handling, input, harvest, admin/QR). Split into
-modules (e.g. `config.js`, `flowers.js`, `game.js`, `admin.js`), keep no build step. Natural first
-step before the leaderboard and clouds.
-
 ## Live leaderboard for all players
 Requested by Gerald 2026-10-06: show every player a current leaderboard. Needs server-side honey per
 bee (see "Server trusts the client"), a leaderboard in the level/SSE payload or its own event, and

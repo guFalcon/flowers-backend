@@ -6,8 +6,8 @@ metadata:
 ---
 
 When a REST endpoint (route, method, params, request/response shape) or an SSE event (`type`,
-payload fields) changes, update the frontend (`index.html` URL constants and handlers,
-`sse-connection.js`, `bee.js`) in the same change, plus the `.http` files ([[feedback_http_tests]]).
+payload fields) changes, update the frontend (URL constants in `config.js`, handlers in
+`events.js`/`level.js`/`harvest.js`/`admin.js`, `sse-connection.js`, `bee.js`) in the same change, plus the `.http` files ([[feedback_http_tests]]).
 
 **Why:** Carried over from presserl/java-overmind-server, where the endpoints primer and the client
 had to move with the backend; drift meant a client built against a stale contract. Here the

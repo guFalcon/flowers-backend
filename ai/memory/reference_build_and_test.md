@@ -30,7 +30,7 @@ otherwise — mark each line verified once it has run.
 - **Backend image:** `./mvnw package -DskipTests && docker build -f src/main/docker/Dockerfile.jvm -t flowers-backend:local .`
 - **Frontend dev:** `cd ~/source/htl/js/flowers-frontend && npm ci && npm start` (nodemon) →
   http://localhost:8081 (`INTERNAL_PORT` overrides). For a local backend switch the `SERVER`
-  constant in `index.html` or reroute in Playwright (preferred: no file change). CORS already
+  constant in `config.js` or reroute in Playwright (preferred: no file change). CORS already
   allows `http://localhost:8080` and `:8081`.
 - **Frontend CI check:** the shared `npm-build-workflow` runs `npm ci`, so `package-lock.json` must
   stay in sync with `package.json`; verify with `docker run --rm -v "$PWD":/app -w /app node:20 sh -c "npm ci && npm run build"`.
@@ -40,10 +40,15 @@ otherwise — mark each line verified once it has run.
   jetbrains/intellij-http-client --env-file http-client.env.json --env dev *.http`;
   `-V baseUrl=…` overrides the env file. `client.test(...)` callbacks run after the handler body,
   so read a global into a `const` before a later `client.global.set` overwrites it.
-- **Headless browser (verified for flowers 2026-10-06):** rewrite `SERVER` by routing the
-  document (`context.route('http://localhost:8081/', …)` + string replace) — routing the SSE
-  request itself would buffer the stream. Top-level `const`/functions of the inline script
-  (`HARVEST_URL`, `updateFill`, `closeQrModal`) are reachable from `page.evaluate`.
+- **Headless browser (verified for flowers 2026-10-06, after the ES-module split):** rewrite
+  `SERVER` by routing `config.js` (`context.route(url => url.pathname === '/config.js', …)`,
+  `route.fetch()` + string replace of the live URL + `route.fulfill`) — routing the SSE request
+  itself would buffer the stream. Also fail on any request to the live backend so a missed route
+  is noticed. The code lives in ES modules, so its functions are NOT globals in `page.evaluate`:
+  drive the UI through the DOM (clicks, `#honey`, `.flower[data-id]`, `.bee-tint-wrapper.is-self`,
+  `#connectionStatus.connected`, `#qrModal.open`) or `await import('/flowers.js')` inside
+  `page.evaluate`. A MutationObserver on `#playArea` catches the transient `.center.depleted`
+  flash of a `harvest` event (the next `level-update` rebuilds the flowers).
   Base recipe (from presserl): `mcr.microsoft.com/playwright:v1.55.0-noble`,
   `npm i playwright@1.55.0` in a scratch dir, `docker run --rm --network host -v <dir>:/work -w /work
   mcr.microsoft.com/playwright:v1.55.0-noble node script.js`. The game renders as plain DOM elements
