@@ -33,7 +33,11 @@ otherwise — mark each line verified once it has run.
   constant in `config.js` or reroute in Playwright (preferred: no file change). CORS already
   allows `http://localhost:8080` and `:8081`.
 - **Frontend CI check:** the shared `npm-build-workflow` runs `npm ci`, so `package-lock.json` must
-  stay in sync with `package.json`; verify with `docker run --rm -v "$PWD":/app -w /app node:20 sh -c "npm ci && npm run build"`.
+  stay in sync with `package.json`; verify with `docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD":/app -w /app node:24 sh -c "npm ci && npm run build"`
+  (verified 2026-10-06; `--user`/`HOME` keep `node_modules` owned by Gerald). Regenerate the lock file
+  the same way with `npm install`.
+- **Frontend image (verified 2026-10-06):** `docker build -t flowers-frontend:local .` then
+  `docker run --rm -e INTERNAL_PORT=8080 -p 8080:8080 flowers-frontend:local`.
 - **.http files (verified for flowers 2026-10-06 with `http/game.http`, plain `cd http && docker run --rm --network host -v "$PWD":/workdir jetbrains/intellij-http-client game.http`
   using an in-file `@host`; in-file `@vars` are NOT visible to `request.variables.get` or `{{…}}` inside
   `> {% %}` handlers — use literals there; the trailing SSE request terminates on its own):** `cd http && docker run --rm --network host -v "$PWD":/workdir

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import info.unterrainer.htl.ColorUtils;
 import info.unterrainer.htl.dtos.Flower;
 import info.unterrainer.htl.dtos.Level;
 import info.unterrainer.htl.services.EventBusService;
@@ -60,6 +61,8 @@ class GameResourceLevelTest {
         assertThat(level.getString("yourBeeId")).isEqualTo(playerId);
         assertThat(level.getList("bees.findAll { it.id == '" + playerId + "' }")).hasSize(1);
         assertThat(level.getList("flowers")).hasSizeBetween(6, 11);
+        assertThat(level.getList("flowers.color", String.class))
+                .isSubsetOf(ColorUtils.getNamedColors());
     }
 
     @Test

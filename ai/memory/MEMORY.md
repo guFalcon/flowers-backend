@@ -16,6 +16,6 @@
 - [Click through UI checks myself](feedback_ui_tests_myself.md) — Manual-check tasks: drive the frontend headless (Playwright) myself, don't hand click steps to Gerald
 - [Stop own servers](feedback_stop_own_servers.md) — Stop every server/container I started (8084, 8081) and verify with ps/ss/docker
 - [Push all touched repos on archive](feedback_push_shared_ci_without_asking.md) — End of /opsx:archive: commit + push backend, frontend and shared workflow repos the change touched; ask only when something is off; redeploy is never a concern
-- [Machine JDK setup](reference_machine_jdk.md) — Default JDK is now 27 (breaks Lombok): run Maven with JAVA_HOME=/usr/lib/jvm/java-21-openjdk; frontend Node 20
+- [Machine JDK setup](reference_machine_jdk.md) — Default JDK is now 27 (breaks Lombok): run Maven with JAVA_HOME=/usr/lib/jvm/java-21-openjdk; frontend Node 24
 - [Build and test commands](reference_build_and_test.md) — Dev/test/image/.http/Playwright commands; backend tests (random port, test classes), quarkus:dev and .http verified
 - [CI runners](reference_ci_runners.md) — babylon5 vs dev1; flowers pipelines and shared workflows (npm ci, Node 24 majors, WireGuard-or-none); runner-too-old fix

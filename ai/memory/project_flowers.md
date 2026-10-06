@@ -14,7 +14,7 @@ clients via SSE; an admin can restart the level (QR code panel for joining).
   `POST /api/player/{id}/target`, `POST /api/harvest/{flowerId}`, `GET /api/events` (SSE),
   `POST /api/admin/restart`. CORS origins in `application.properties`.
 - **Frontend** `~/source/htl/js/flowers-frontend` (`guFalcon/flowers-frontend`, `main`): static
-  HTML/CSS/JS as ES modules (entry `main.js`) + Express (`app.js`), Node 20. `SERVER` constant in `config.js` points at the live
+  HTML/CSS/JS as ES modules (entry `main.js`) + Express (`app.js`), Node 24. `SERVER` constant in `config.js` points at the live
   backend (a commented-out localhost line for dev).
 - **Live:** `https://flowers.htl.dev` (frontend) and `https://flowers-backend.htl.dev`, both
   docker compose behind Traefik (network `proxy_default`). Every push to `main` bumps the version,

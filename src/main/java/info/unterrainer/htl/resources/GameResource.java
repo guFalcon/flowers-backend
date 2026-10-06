@@ -61,7 +61,7 @@ public class GameResource {
     @Path("/admin/restart")
     public Response restartLevel() {
         service.restartLevel();
-        bus.publish(Map.of("type", "levelRestarted")); // <- Neu: SSE-Event
+        bus.publish(Map.of("type", "levelRestarted")); // SSE event: tell clients to reload the level
         return Response.ok(Map.of("status", "ok", "message", "Level restarted")).build();
     }
 }

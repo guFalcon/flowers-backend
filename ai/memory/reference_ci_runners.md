@@ -21,9 +21,10 @@ lands on either set at random.
 - *Frontend* uses only shared workflows: `npm-build-workflow` → `docker-build-workflow` →
   `deploy-workflow`. `npm-build-workflow` installs with **`npm ci`** (since 2026-10-02), so the
   committed `package-lock.json` must be in sync with `package.json`; drift fails at `npm ci`.
-- *Backend* has its own build job (`self-hosted` runner, setup-java, manual Maven 3.9.4 install,
-  `mvn package -DskipTests`) and its own docker job on `ubuntu-latest`, then `deploy-workflow`.
-  Still on old action majors — backlog entry in `ai/open-proposals.md`.
+- *Backend* has its own build job (`self-hosted` runner, checkout via `init-runner-action`,
+  setup-java v6 with `cache: maven`, Maven wrapper `./mvnw package -DskipTests`, artifact
+  `app-target` = `target/quarkus-app`) and its own docker job on `ubuntu-latest`, then
+  `deploy-workflow`. On the Node 24 majors since housekeeping-pipeline-cleanups-images (2026-10-06).
 
 **Node 24 action majors** (callers-node24-actions, 2026-10-02): checkout v7, cache v6,
 setup-java v6, setup-node v7, upload/download-artifact v7/v8, docker qemu/buildx/login v4 +

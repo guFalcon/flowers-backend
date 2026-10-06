@@ -12,7 +12,7 @@
 flowers is a small multiplayer browser game (bees fly to flowers and harvest honey), used for teaching at HTL. It is split into two repos; **this backend repo is the control centre** — memory, OpenSpec and backlog live here only, and Claude drives the frontend repo from here.
 
 - **Backend — this repo** (`~/source/htl/java/flowers-backend`, GitHub `guFalcon/flowers-backend`, branch `main`): Java 21, Quarkus (Maven wrapper), package `info.unterrainer.htl`. REST + SSE under `/api` (`resources/GameResource.java`), in-memory game state (`services/LevelService`, `services/EventBusService`), no database. Port 8084. Tests: JUnit 5 + AssertJ (`@QuarkusTest`, REST Assured); no tests exist yet.
-- **Frontend** (`~/source/htl/js/flowers-frontend`, GitHub `guFalcon/flowers-frontend`, branch `main`): plain HTML/CSS/JS as native ES modules (`index.html` loads `main.js`; one module per concern, plus the classes in `bee.js`, `sse-connection.js`, `audio-system.js`) served statically by a tiny Express server (`app.js`, port 8081, Node 20 per `.nvmrc`). No build step. Backend base URL is the `SERVER` constant in `config.js`.
+- **Frontend** (`~/source/htl/js/flowers-frontend`, GitHub `guFalcon/flowers-frontend`, branch `main`): plain HTML/CSS/JS as native ES modules (`index.html` loads `main.js`; one module per concern, plus the classes in `bee.js`, `sse-connection.js`, `audio-system.js`) served statically by a tiny Express server (`app.js`, port 8081, Node 24 per `.nvmrc`). No build step. Backend base URL is the `SERVER` constant in `config.js`.
 
 Layout of this repo:
 - `src/` — Quarkus application; `src/main/docker/` — Dockerfiles (`Dockerfile.jvm` is used by CI).

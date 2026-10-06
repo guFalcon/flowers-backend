@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 
 import info.unterrainer.htl.ColorUtils;
 import info.unterrainer.htl.dtos.Bee;
@@ -53,7 +52,7 @@ public class LevelService {
     	List<Flower> flowers = new ArrayList<>();
         for (int i = 0; i < 6 + (int) (Math.random() * 6); i++) {
             int petals = 5 + (int) (Math.random() * 5);
-            String baseColor = pickColor();
+            String baseColor = ColorUtils.pickRandomBaseColor();
             List<String> petalColors = ColorUtils.generatePetalColors(baseColor, petals);
             String stampColor = ColorUtils.pickStampColor(petalColors.get(0));
 
@@ -82,8 +81,10 @@ public class LevelService {
 
     private synchronized BeeRegistration addBeeIfAbsent(String id) {
         Bee existing = bees.get(id);
-        if (existing != null)
+        if (existing != null) {
+            existing.setLastActive(System.currentTimeMillis());
             return new BeeRegistration(existing, false);
+        }
 
         String baseName = ColorUtils.pickRandomBaseColor();
         String beeColor = ColorUtils.generatePetalColors(baseName, 1).getFirst();
@@ -197,17 +198,6 @@ public class LevelService {
             return collected;
         }
         return 0;
-    }
-
-
-    private String pickColor() {
-        String[] colors = {
-                "pink", "lightblue", "violet", "lightyellow", "plum", "salmon",
-                "lightgreen", "blue", "ivory", "salmon", "red", "mediumvioletred",
-                "orangered", "darkorange", "orange", "gold", "khaki", "thistle",
-                "mediumslateblue", "palegreen"
-        };
-        return colors[new Random().nextInt(colors.length)];
     }
 
     @Scheduled(every = "1s")

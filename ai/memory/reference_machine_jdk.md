@@ -16,5 +16,5 @@ works; pin `JAVA_HOME=/usr/lib/jvm/java-21-openjdk` only if the default changes 
 managed via fnm/volta (`openspec` is on the volta path).
 
 flowers-backend targets `maven.compiler.release=21` (Quarkus 3.26.4) and uses Lombok 1.18.38; the
-image is built from `src/main/docker/Dockerfile.jvm`. The frontend pins Node 20 (`.nvmrc`), its
-image uses `node:22.14-alpine`. Commands: [[reference_build_and_test]].
+image is built from `src/main/docker/Dockerfile.jvm`. The frontend pins Node 24 (`.nvmrc`), its
+image uses `node:24-alpine`. Commands: [[reference_build_and_test]].

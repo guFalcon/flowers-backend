@@ -1,5 +1,6 @@
 package info.unterrainer.htl.services;
 
+import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -48,5 +49,26 @@ class LevelServiceCleanupTest {
         assertThat(events)
                 .filteredOn(e -> e instanceof Map<?, ?> m && "level-update".equals(m.get("type")))
                 .hasSize(1);
+    }
+
+    @Test
+    void rejoiningKeepsAnIdleBeeAlive() {
+        String playerId = "cleanup-" + UUID.randomUUID();
+        levelService.registerBee(playerId);
+        long now = System.currentTimeMillis();
+        liveBee(playerId).setLastActive(now - 50_000);
+
+        given()
+                .when().get("/api/level/{playerId}", playerId)
+                .then().statusCode(200);
+        levelService.cleanupInactiveBees(now + 20_000);
+
+        assertThat(levelService.getLevel().getBees()).extracting(Bee::getId).contains(playerId);
+    }
+
+    private Bee liveBee(String playerId) {
+        return levelService.getLevel().getBees().stream()
+                .filter(b -> b.getId().equals(playerId))
+                .findFirst().orElseThrow();
     }
 }

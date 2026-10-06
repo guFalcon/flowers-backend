@@ -7,7 +7,7 @@ context: |
                   Quarkus REST + Jackson, Mutiny Multi for the SSE stream. In-memory game state,
                   no database. Port 8084. Tests: JUnit 5 + AssertJ, @QuarkusTest + REST Assured.
     - flowers-frontend (~/source/htl/js/flowers-frontend): plain HTML/CSS/JS, no framework, no
-                  build step, served by a minimal Express server (port 8081, Node 20). Talks to
+                  build step, served by a minimal Express server (port 8081, Node 24). Talks to
                   the backend via fetch + EventSource; base URL is the SERVER constant in config.js.
     - deploy/ in each repo: docker compose behind an external Traefik; every push to main
                   redeploys (flowers.htl.dev, flowers-backend.htl.dev).
