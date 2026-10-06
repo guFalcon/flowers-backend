@@ -22,11 +22,6 @@ harvest, restart, SSE events) would give later changes a safety net.
 are. Concurrent clicks can raise `ConcurrentModificationException` and race on `Flower.fill`. Use a
 `ConcurrentHashMap` and/or synchronize all mutating and iterating paths; `restartLevel()` too.
 
-## Harvest SSE event fires on the wrong condition (bug, confirmed by Gerald 2026-10-06)
-`GameResource.harvest` publishes `{"type":"harvest","flowerId"}` only when `honey == 0`, i.e. on a
-failed harvest. It should fire on a successful harvest so other clients see the emptied flower
-immediately instead of after the next `level-update` (≤3 s). Contract change → frontend + `.http`.
-
 ## level-update payload is double-encoded
 `publishLevel()` serialises the level to a JSON string and nests it in the event (`level` is a
 string); the frontend re-parses it. Send the `Level` object directly. Contract change → both repos.
@@ -50,10 +45,6 @@ every player click). Update flowers in place (by id) instead.
 Client grows `fill` by `rate` every 2 s, server every 1 s — the two drift until the next
 `level-update`. Either take fill only from the server or use the same rate/interval.
 
-## QR modal close leaks listeners
-`closeQrModal()` in `index.html` calls `addEventListener` instead of `removeEventListener`, so click
-listeners accumulate with every open/close.
-
 ## Frontend Dockerfile and dependencies
 `npm install -only=production` is a typo (installs everything; use `npm ci --omit=dev`); files are
 copied twice (`COPY *.js`, `*.css`); `nodemon` and unused `express-session` are runtime dependencies;
@@ -74,8 +65,3 @@ a frontend panel. Open: player names/colours, reset on level restart. Contract c
 Requested by Gerald 2026-10-06: clouds on the meadow that slow bees flying through them, so players
 learn to route around them. Open: static vs drifting clouds, server- or client-side flight time,
 how harvest timing accounts for the slowdown. Probably after the frontend restructure.
-
-## mvnw is not executable in git
-Found during `add-readmes` apply (2026-10-06): `mvnw` is tracked as `100644`, so `./mvnw` fails with
-"permission denied" on a fresh clone; `sh mvnw` works. Fix with
-`git update-index --chmod=+x mvnw` and drop the workaround note from the README.

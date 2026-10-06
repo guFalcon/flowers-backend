@@ -101,9 +101,6 @@ if your default is newer) and Docker only for image builds. Maven comes with the
 ./mvnw quarkus:dev
 ```
 
-> `mvnw` is currently not marked executable in git. If `./mvnw` reports "permission denied",
-> run `sh mvnw quarkus:dev` (or `chmod +x mvnw`).
-
 - Backend: <http://localhost:8084>
 - Swagger UI: <http://localhost:8084/q/swagger-ui/> (OpenAPI document at `/q/openapi`)
 - Dev UI: <http://localhost:8084/q/dev-ui/>

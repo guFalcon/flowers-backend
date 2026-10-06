@@ -1,0 +1,54 @@
+# flowers backend REST/SSE API.
+# Run in IntelliJ or with the JetBrains HTTP client CLI against `./mvnw quarkus:dev`.
+# To watch the harvest event, keep `curl -N http://localhost:8084/api/events` open while running
+# the harvest requests (or run the events request below on its own).
+
+@host = http://localhost:8084
+@playerId = http-client-player
+@flowerId = flower-1
+
+### Get the level for a player (registers the player's bee)
+GET {{host}}/api/level/{{playerId}}
+
+> {%
+    client.test("level contains flowers and your bee", () => {
+        client.assert(response.status === 200, "status " + response.status);
+        client.assert(response.body.flowers.length > 0, "no flowers");
+        client.assert(!!response.body.yourBeeId, "yourBeeId " + response.body.yourBeeId);
+    });
+%}
+
+### Harvest an existing flower: yields honey and publishes {"type":"harvest","flowerId":…,"fill":0}
+POST {{host}}/api/harvest/{{flowerId}}
+
+> {%
+    client.test("first harvest yields honey", () => {
+        client.assert(response.status === 200, "status " + response.status);
+        client.assert(!!response.body.flowerId, "flowerId " + response.body.flowerId);
+        client.assert(response.body.honey > 0, "honey " + response.body.honey);
+    });
+%}
+
+### Harvest the same flower again: it is empty, yields 0 and publishes no event
+POST {{host}}/api/harvest/{{flowerId}}
+
+> {%
+    client.test("repeated harvest yields nothing", () => {
+        client.assert(response.status === 200, "status " + response.status);
+        client.assert(response.body.honey === 0, "honey " + response.body.honey);
+    });
+%}
+
+### Harvest an unknown flower: yields 0 and publishes no event
+POST {{host}}/api/harvest/no-such-flower
+
+> {%
+    client.test("unknown flower yields nothing", () => {
+        client.assert(response.status === 200, "status " + response.status);
+        client.assert(response.body.honey === 0, "honey " + response.body.honey);
+    });
+%}
+
+### Event stream (text/event-stream): level-update every 3 s, harvest after a successful harvest
+GET {{host}}/api/events
+Accept: text/event-stream

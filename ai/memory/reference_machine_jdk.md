@@ -7,8 +7,9 @@ metadata:
 
 **Update 2026-10-06:** `archlinux-java` default is now `java-27-openjdk`; flowers-backend fails to
 compile under it (Lombok getters/`log` missing). Run Maven as
-`JAVA_HOME=/usr/lib/jvm/java-21-openjdk sh mvnw …` (also: `mvnw` is not executable in git, hence
-`sh`). Older note: on Gerald's CachyOS machine the default JDK was 21 (`archlinux-java` default
+`JAVA_HOME=/usr/lib/jvm/java-21-openjdk ./mvnw …` (`mvnw` is executable in git since
+fix-harvest-event-and-quick-fixes). The Bash tool runs zsh, not fish; `pkill -f` patterns must
+not match their own command line (use `[q]uarkus:dev`). Older note: on Gerald's CachyOS machine the default JDK was 21 (`archlinux-java` default
 `java-21-openjdk`, verified 2026-09-26 in presserl); JDK 26 is installed but not default, the
 IntelliJ JBRs are 25. Lombok broke on anything past 21 in java-overmind-server, so plain `./mvnw`
 works; pin `JAVA_HOME=/usr/lib/jvm/java-21-openjdk` only if the default changes again. Node is
