@@ -17,6 +17,9 @@
 # is created (kept for the bee's lifetime) and path its flight as keyframes [{"t","x","y"}…] (one
 # keyframe for a bee that has never flown; otherwise start, every cloud entry/exit, arrival).
 # harvest events: {"type":"harvest","flowerId":…,"fill":0,"beeId":…,"honey":<the bee's new total in µl>}
+# A bee without activity (join, steer, harvest) for more than 5 minutes (flowers.inactivity-timeout) is
+# removed and retired; when its player joins or steers again it comes back with the same name (unless
+# taken by then), colour and honey, standing still where it was removed.
 # Admin endpoints need the header X-Admin-Token; quarkus:dev uses the token `dev-admin-token`.
 
 @host = http://localhost:8084
@@ -35,8 +38,8 @@ GET {{host}}/api/level/{{playerId}}
         client.assert(response.status === 200, "status " + response.status);
         client.assert(level.flowers.length > 0, "no flowers");
         client.assert(typeof level.serverTime === "number", "serverTime " + level.serverTime);
-        client.assert(level.clouds.length >= 4 && level.clouds.length <= 6, "clouds " + level.clouds.length);
-        client.assert(level.clouds.every(c => c.size === 0.1 && c.speed >= 0.02 && c.speed <= 0.05),
+        client.assert(level.clouds.length >= 12 && level.clouds.length <= 18, "clouds " + level.clouds.length);
+        client.assert(level.clouds.every(c => c.size >= 0.06 && c.size <= 0.16 && c.speed >= 0.02 && c.speed <= 0.05),
             "clouds " + JSON.stringify(level.clouds));
         client.assert(level.wind[0].t <= level.serverTime, "wind starts after serverTime");
         client.assert(level.wind[level.wind.length - 1].t >= level.serverTime + 60000, "wind ends too early");

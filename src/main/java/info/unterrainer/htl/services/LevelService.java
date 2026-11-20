@@ -1,5 +1,6 @@
 package info.unterrainer.htl.services;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -22,8 +23,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
 /**
- * Owns the game state. Every access to {@code currentLevel}, its flowers and {@code bees} runs under
+ * Owns the game state. Every access to {@code currentLevel}, its flowers, {@code bees} and {@code retiredBees} runs under
  * the monitor of this bean ({@code synchronized}); SSE events are published after the lock has been
  * released, so a slow subscriber never blocks the game logic.
  * <p>
@@ -33,7 +36,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @ApplicationScoped
 public class LevelService {
-    private static final long INACTIVITY_TIMEOUT_MILLIS = 60_000;
     // Flight speed: 0.2 units per second in relative coordinates (5 s per unit), at least 0.2 s per flight
     private static final double FLIGHT_SPEED_PER_MILLI = 0.2 / 1000;
     private static final long MIN_FLIGHT_MILLIS = 200;
@@ -56,11 +58,16 @@ public class LevelService {
     private Level currentLevel;
     private Weather weather;
     private final Map<String, Bee> bees = new HashMap<>();
+    // Bees removed for inactivity, frozen at their position at removal, until their id joins or steers again
+    private final Map<String, Bee> retiredBees = new HashMap<>();
     // Only used under the lock
     private final Random random = new Random();
 
     @Inject
     EventBusService eventBusService;
+
+    @ConfigProperty(name = "flowers.inactivity-timeout", defaultValue = "5m")
+    Duration inactivityTimeout;
 
     private record BeeRegistration(Bee bee, boolean created) {
     }
@@ -111,6 +118,7 @@ public class LevelService {
         }
         // A restart starts a new round: bees keep their positions and flights, but not their honey
         bees.values().forEach(b -> b.setHoney(0));
+        retiredBees.values().forEach(b -> b.setHoney(0));
         currentLevel = Level.builder().flowers(flowers).bees(new ArrayList<>(bees.values())).build();
     }
 
@@ -131,6 +139,10 @@ public class LevelService {
             existing.setLastActive(now);
             return new BeeRegistration(existing, false);
         }
+
+        Bee retired = retiredBees.remove(id);
+        if (retired != null)
+            return new BeeRegistration(restoreRetiredBee(retired, now), true);
 
         String baseName = ColorUtils.pickRandomBaseColor();
         String beeColor = ColorUtils.generatePetalColors(baseName, 1).getFirst();
@@ -160,6 +172,27 @@ public class LevelService {
             currentLevel.setBees(new ArrayList<>(bees.values()));
 
         return new BeeRegistration(bee, true);
+    }
+
+    /**
+     * Brings a retired bee back: same id, colour and honey, standing still where it was retired, active
+     * as of {@code now}. It keeps its name unless a current bee has it by now. Must be called while
+     * holding the lock.
+     */
+    private Bee restoreRetiredBee(Bee retired, long now) {
+        Set<String> usedNames = bees.values().stream().map(Bee::getName).collect(Collectors.toSet());
+        String name = usedNames.contains(retired.getName()) ? BeeNames.pick(usedNames, random) : retired.getName();
+        Bee bee = retired.toBuilder()
+                .targetX(retired.getX())
+                .targetY(retired.getY())
+                .path(List.of(new PathKeyframe(now, retired.getX(), retired.getY())))
+                .name(name)
+                .lastActive(now)
+                .build();
+        bees.put(bee.getId(), bee);
+        if (currentLevel != null)
+            currentLevel.setBees(new ArrayList<>(bees.values()));
+        return bee;
     }
 
     /**
@@ -218,18 +251,36 @@ public class LevelService {
     }
 
     private synchronized int removeInactiveBees(long now) {
-        List<String> toRemove = new ArrayList<>();
+        long timeoutMillis = inactivityTimeout.toMillis();
+        List<Bee> toRemove = new ArrayList<>();
         for (Bee bee : bees.values()) {
-            if (now - bee.getLastActive() > INACTIVITY_TIMEOUT_MILLIS) {
-                toRemove.add(bee.getId());
+            if (now - bee.getLastActive() > timeoutMillis) {
+                toRemove.add(bee);
             }
         }
 
         if (!toRemove.isEmpty()) {
-            toRemove.forEach(bees::remove);
+            for (Bee bee : toRemove) {
+                bees.remove(bee.getId());
+                retiredBees.put(bee.getId(), freezeAt(bee, now));
+            }
             currentLevel.setBees(new ArrayList<>(bees.values()));
         }
         return toRemove.size();
+    }
+
+    /**
+     * Copy of the bee standing still at its position at {@code now}.
+     */
+    private static Bee freezeAt(Bee bee, long now) {
+        Bee.Position position = bee.positionAt(now);
+        return bee.toBuilder()
+                .x(position.x())
+                .y(position.y())
+                .targetX(position.x())
+                .targetY(position.y())
+                .path(List.of(new PathKeyframe(now, position.x(), position.y())))
+                .build();
     }
 
     /**
