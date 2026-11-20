@@ -16,8 +16,9 @@ SHALL pick a random name from the list and append a space and the smallest numbe
 makes it unique among the current bees (e.g. `Maja 2`).
 
 A bee SHALL keep its name for as long as it exists, including across level restarts. A bee that was
-removed for inactivity and is created again SHALL get a newly picked name. There SHALL be no way for
-a client to set or change a name.
+removed for inactivity and comes back (see game-session) SHALL keep its previous name, unless a
+current bee has that name by then; in that case it SHALL get a newly picked name as above. There
+SHALL be no way for a client to set or change a name.
 
 #### Scenario: New bee has a name from the list
 - **WHEN** a client calls `GET /api/level/p1` and no bee `p1` exists
@@ -34,6 +35,14 @@ a client to set or change a name.
 #### Scenario: Name survives rejoin and restart
 - **WHEN** bee `p1` is named `Willi`, the client calls `GET /api/level/p1` again and the admin restarts the level
 - **THEN** bee `p1` is still named `Willi`
+
+#### Scenario: Returning bee keeps its name
+- **WHEN** bee `p1` named `Willi` was removed for inactivity, no current bee is named `Willi`, and `p1` joins again
+- **THEN** bee `p1` is named `Willi`
+
+#### Scenario: Returning bee's name was taken
+- **WHEN** bee `p1` named `Willi` was removed for inactivity, a current bee `p2` is named `Willi`, and `p1` joins again
+- **THEN** bee `p1` gets a newly picked name different from every current bee's name
 
 ### Requirement: Clients show a live leaderboard
 The frontend SHALL show a leaderboard panel in the top-right corner of the page, built from the bees
