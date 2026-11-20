@@ -19,3 +19,4 @@
 - [Machine JDK setup](reference_machine_jdk.md) — Default JDK is now 27 (breaks Lombok): run Maven with JAVA_HOME=/usr/lib/jvm/java-21-openjdk; frontend Node 24
 - [Build and test commands](reference_build_and_test.md) — Dev/test/image/.http/Playwright commands; backend tests (random port, test classes), quarkus:dev and .http verified
 - [CI runners](reference_ci_runners.md) — babylon5 vs dev1; flowers pipelines and shared workflows (npm ci, Node 24 majors, WireGuard-or-none); runner-too-old fix
+- [Pi-hole upstream-block cache](reference_pihole_upstream_block.md) — Runner offline + broker.actions.githubusercontent.com → 0.0.0.0: Pi-hole on greatmachine caches upstream block 24h; `docker restart pihole`, then restart runners
